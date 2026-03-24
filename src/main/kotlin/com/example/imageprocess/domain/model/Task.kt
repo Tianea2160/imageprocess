@@ -1,5 +1,6 @@
 package com.example.imageprocess.domain.model
 
+import com.example.imageprocess.domain.exception.InvalidTaskStateTransitionException
 import java.security.MessageDigest
 import java.time.Instant
 
@@ -22,8 +23,8 @@ class Task(
         private set
 
     fun transitionTo(newStatus: TaskStatus) {
-        require(TaskStatus.canTransition(status, newStatus)) {
-            "Invalid state transition: $status -> $newStatus"
+        if (!TaskStatus.canTransition(status, newStatus)) {
+            throw InvalidTaskStateTransitionException(status, newStatus)
         }
         status = newStatus
     }

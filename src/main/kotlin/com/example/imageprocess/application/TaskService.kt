@@ -1,5 +1,7 @@
 package com.example.imageprocess.application
 
+import com.example.imageprocess.domain.exception.InvalidTaskUrlException
+import com.example.imageprocess.domain.exception.TaskNotFoundException
 import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.inbound.TaskUseCase
@@ -28,10 +30,10 @@ class TaskService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun createTask(imageUrl: String): Task {
-        require(imageUrl.isNotBlank()) { "imageUrl must not be blank" }
-        require(imageUrl.length <= 2048) { "imageUrl must not exceed 2048 characters" }
-        require(imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-            "imageUrl must be an HTTP or HTTPS URL"
+        if (imageUrl.isBlank()) throw InvalidTaskUrlException("imageUrl must not be blank")
+        if (imageUrl.length > 2048) throw InvalidTaskUrlException("imageUrl must not exceed 2048 characters")
+        if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) {
+            throw InvalidTaskUrlException("imageUrl must be an HTTP or HTTPS URL")
         }
 
         val fingerprint = Task.computeFingerprint(imageUrl)
@@ -58,7 +60,7 @@ class TaskService(
     @Transactional(readOnly = true)
     override fun getTask(taskId: String): Task =
         taskRepository.findById(taskId)
-            ?: throw NoSuchElementException("Task not found: $taskId")
+            ?: throw TaskNotFoundException(taskId)
 
     @Transactional(readOnly = true)
     override fun listTasks(

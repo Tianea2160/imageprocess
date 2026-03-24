@@ -1,5 +1,6 @@
 package com.example.imageprocess.domain.model
 
+import com.example.imageprocess.domain.exception.InvalidTaskStateTransitionException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -41,7 +42,7 @@ class TaskTest {
         task.transitionTo(TaskStatus.SUBMITTED)
         task.transitionTo(TaskStatus.PROCESSING)
         task.transitionTo(TaskStatus.COMPLETED)
-        assertThrows<IllegalArgumentException> {
+        assertThrows<InvalidTaskStateTransitionException> {
             task.transitionTo(TaskStatus.PENDING)
         }
     }
@@ -50,7 +51,7 @@ class TaskTest {
     fun `should not allow transition from terminal state`() {
         val task = Task(id = "01H5N0640J7Q", imageUrl = "https://example.com/image.png")
         task.transitionTo(TaskStatus.FAILED)
-        assertThrows<IllegalArgumentException> {
+        assertThrows<InvalidTaskStateTransitionException> {
             task.transitionTo(TaskStatus.SUBMITTED)
         }
     }

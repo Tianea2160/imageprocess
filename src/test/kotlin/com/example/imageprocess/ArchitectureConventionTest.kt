@@ -3,9 +3,12 @@ package com.example.imageprocess
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.ext.list.withAnnotationOf
 import com.lemonappdev.konsist.api.ext.list.withNameEndingWith
+import com.lemonappdev.konsist.api.ext.list.withVal
 import com.lemonappdev.konsist.api.verify.assertFalse
 import com.lemonappdev.konsist.api.verify.assertTrue
 import jakarta.persistence.Entity
+import org.hibernate.annotations.DynamicInsert
+import org.hibernate.annotations.DynamicUpdate
 import org.junit.jupiter.api.Test
 import org.springframework.web.bind.annotation.RestController
 
@@ -30,8 +33,8 @@ class ArchitectureConventionTest {
             .classes()
             .withAnnotationOf(Entity::class)
             .assertTrue { clazz ->
-                clazz.hasAnnotationOf(org.hibernate.annotations.DynamicInsert::class) &&
-                    clazz.hasAnnotationOf(org.hibernate.annotations.DynamicUpdate::class)
+                clazz.hasAnnotationOf(DynamicInsert::class) &&
+                    clazz.hasAnnotationOf(DynamicUpdate::class)
             }
     }
 
@@ -99,7 +102,7 @@ class ArchitectureConventionTest {
             .withNameEndingWith("Request", "Response")
             .filter { it.resideInPath("adapter/inbound/web") }
             .flatMap { it.properties() }
-            .filter { !it.hasVarModifier }
+            .withVal()
             .assertTrue { property ->
                 property.annotations.any { annotation ->
                     annotation.name == "Schema" &&
@@ -125,6 +128,32 @@ class ArchitectureConventionTest {
                                 param.annotations.any { it.name in swaggerAnnotations }
                             }
                     }
+            }
+    }
+
+    @Test
+    fun `source code should not use require, check, or error for validation`() {
+        Konsist
+            .scopeFromProject()
+            .files
+            .filter { !it.path.contains("/test/") }
+            .assertFalse { file ->
+                file.text.contains(Regex("""(?m)^\s*require\s*[({]""")) ||
+                    file.text.contains(Regex("""(?m)^\s*require\s*\(.*\)\s*\{""")) ||
+                    file.text.contains(Regex("""(?m)^\s*check\s*[({]""")) ||
+                    file.text.contains(Regex("""(?m)^\s*check\s*\(.*\)\s*\{""")) ||
+                    file.text.contains(Regex("""(?m)(?<!\.)error\s*\("""))
+            }
+    }
+
+    @Test
+    fun `source code should not use non-null assertion operator`() {
+        Konsist
+            .scopeFromProject()
+            .files
+            .filter { !it.path.contains("/test/") }
+            .assertFalse { file ->
+                file.text.contains(Regex("""(?<!\*)!!"""))
             }
     }
 
