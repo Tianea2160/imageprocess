@@ -97,7 +97,7 @@ class Task(
             updatedAt = Instant.now(),
         )
 
-    fun withNextPoll(nextPollAt: Instant): Task =
+    fun withNextPoll(nextPollAt: Instant?): Task =
         Task(
             id = id,
             imageUrl = imageUrl,

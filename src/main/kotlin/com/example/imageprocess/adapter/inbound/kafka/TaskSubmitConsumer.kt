@@ -90,7 +90,7 @@ class TaskSubmitConsumer(
         task: Task,
         reason: String,
     ) {
-        val updated = task.withFailReason(reason).withNextPoll(Instant.MAX)
+        val updated = task.withFailReason(reason).withNextPoll(null)
         updated.transitionTo(TaskStatus.FAILED)
         taskRepository.save(updated)
     }
