@@ -32,6 +32,7 @@ dependencies {
     implementation("io.github.openfeign.querydsl:querydsl-jpa:7.0")
     implementation("io.github.openfeign.querydsl:querydsl-kotlin:7.0")
     kapt("io.github.openfeign.querydsl:querydsl-apt:7.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-scalar:3.0.2")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     runtimeOnly("org.postgresql:postgresql")

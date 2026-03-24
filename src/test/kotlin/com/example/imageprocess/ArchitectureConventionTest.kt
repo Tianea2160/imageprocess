@@ -2,6 +2,7 @@ package com.example.imageprocess
 
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.ext.list.withAnnotationOf
+import com.lemonappdev.konsist.api.ext.list.withNameEndingWith
 import com.lemonappdev.konsist.api.verify.assertFalse
 import com.lemonappdev.konsist.api.verify.assertTrue
 import jakarta.persistence.Entity
@@ -69,6 +70,35 @@ class ArchitectureConventionTest {
                     it.name.startsWith("org.springframework.") ||
                         it.name.startsWith("jakarta.persistence.") ||
                         it.name.startsWith("org.hibernate.")
+                }
+            }
+    }
+
+    @Test
+    fun `request and response classes should have Schema annotation`() {
+        Konsist
+            .scopeFromProject()
+            .classes()
+            .withNameEndingWith("Request", "Response")
+            .filter { it.resideInPath("adapter/inbound/web") }
+            .assertTrue { clazz ->
+                clazz.hasAnnotationOf(io.swagger.v3.oas.annotations.media.Schema::class)
+            }
+    }
+
+    @Test
+    fun `request and response properties should have Schema annotation with requiredMode`() {
+        Konsist
+            .scopeFromProject()
+            .classes()
+            .withNameEndingWith("Request", "Response")
+            .filter { it.resideInPath("adapter/inbound/web") }
+            .flatMap { it.properties() }
+            .filter { !it.hasVarModifier }
+            .assertTrue { property ->
+                property.annotations.any { annotation ->
+                    annotation.name == "Schema" &&
+                        annotation.text.contains("requiredMode")
                 }
             }
     }
