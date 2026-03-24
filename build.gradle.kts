@@ -32,6 +32,8 @@ dependencies {
     implementation("io.github.openfeign.querydsl:querydsl-jpa:7.0")
     implementation("io.github.openfeign.querydsl:querydsl-kotlin:7.0")
     kapt("io.github.openfeign.querydsl:querydsl-apt:7.0")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
@@ -40,6 +42,8 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("com.redis:testcontainers-redis:2.2.4")
+    testImplementation("com.lemonappdev:konsist:0.17.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
