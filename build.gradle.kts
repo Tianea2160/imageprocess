@@ -4,6 +4,7 @@ plugins {
     id("org.springframework.boot") version "4.0.4"
     id("io.spring.dependency-management") version "1.1.7"
     kotlin("plugin.jpa") version "2.3.20"
+    kotlin("kapt") version "2.3.20"
     id("org.jlleitschuh.gradle.ktlint") version "12.3.0"
 }
 
@@ -28,6 +29,9 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("io.github.openfeign.querydsl:querydsl-jpa:7.0")
+    implementation("io.github.openfeign.querydsl:querydsl-kotlin:7.0")
+    kapt("io.github.openfeign.querydsl:querydsl-apt:7.0")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
