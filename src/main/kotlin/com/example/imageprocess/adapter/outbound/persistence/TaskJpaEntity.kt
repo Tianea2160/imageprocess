@@ -4,23 +4,30 @@ import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityListeners
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import jakarta.persistence.Transient
 import jakarta.persistence.Version
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
+import org.springframework.data.annotation.CreatedDate
+import org.springframework.data.annotation.LastModifiedDate
+import org.springframework.data.domain.Persistable
+import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import java.time.Instant
 
 @Entity
 @Table(name = "tasks")
 @DynamicInsert
 @DynamicUpdate
+@EntityListeners(AuditingEntityListener::class)
 class TaskJpaEntity(
     @Id
     @Column(length = 13)
-    val id: String = "",
+    private val id: String = "",
     @Column(nullable = false)
     val imageUrl: String = "",
     @Column(nullable = false, unique = true, length = 64)
@@ -38,11 +45,21 @@ class TaskJpaEntity(
     var nextPollAt: Instant? = null,
     @Version
     var version: Long = 0,
+    @CreatedDate
     @Column(nullable = false, updatable = false)
     val createdAt: Instant = Instant.now(),
+    @LastModifiedDate
     @Column(nullable = false)
     var updatedAt: Instant = Instant.now(),
-) {
+) : Persistable<String> {
+
+    @Transient
+    private var _isNew: Boolean = false
+
+    override fun getId(): String = id
+
+    override fun isNew(): Boolean = _isNew
+
     fun toDomain(): Task =
         Task(
             id = id,
@@ -61,7 +78,10 @@ class TaskJpaEntity(
         )
 
     companion object {
-        fun fromDomain(task: Task): TaskJpaEntity =
+        fun fromDomain(
+            task: Task,
+            isNew: Boolean = false,
+        ): TaskJpaEntity =
             TaskJpaEntity(
                 id = task.id,
                 imageUrl = task.imageUrl,
@@ -76,6 +96,6 @@ class TaskJpaEntity(
                 version = task.version,
                 createdAt = task.createdAt,
                 updatedAt = task.updatedAt,
-            )
+            ).also { it._isNew = isNew }
     }
 }

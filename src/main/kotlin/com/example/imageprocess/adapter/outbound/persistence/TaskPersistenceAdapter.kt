@@ -14,7 +14,8 @@ class TaskPersistenceAdapter(
     private val jpaRepository: TaskJpaRepository,
 ) : TaskRepository {
     override fun save(task: Task): Task {
-        val entity = TaskJpaEntity.fromDomain(task)
+        val isNew = !jpaRepository.existsById(task.id)
+        val entity = TaskJpaEntity.fromDomain(task, isNew = isNew)
         return jpaRepository.save(entity).toDomain()
     }
 
