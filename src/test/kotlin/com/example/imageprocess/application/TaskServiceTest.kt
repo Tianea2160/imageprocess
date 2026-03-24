@@ -50,7 +50,7 @@ class TaskServiceTest {
         val result = taskService.createTask(imageUrl)
 
         result.imageUrl shouldBe imageUrl
-        result.status shouldBe TaskStatus.PENDING
+        result.state shouldBe TaskStatus.PENDING
         result.nextPollAt shouldNotBe null
         verify { taskRepository.save(any()) }
         verify { taskEventPublisher.publishSubmitTask(result.id, imageUrl) }

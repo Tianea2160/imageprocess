@@ -3,11 +3,13 @@ package com.example.imageprocess.adapter.inbound.kafka
 import com.example.imageprocess.adapter.kafka.KafkaTopics
 import com.example.imageprocess.adapter.kafka.TaskSubmitMessage
 import com.example.imageprocess.domain.model.Task
+import com.example.imageprocess.domain.model.TaskEvent
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.ImageProcessor
 import com.example.imageprocess.domain.port.outbound.SubmitResult
 import com.example.imageprocess.domain.port.outbound.TaskRepository
+import com.example.imageprocess.domain.statemachine.core.StateMachine
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.BackOff
@@ -25,6 +27,7 @@ class TaskSubmitConsumer(
     private val taskRepository: TaskRepository,
     private val imageProcessor: ImageProcessor,
     private val circuitBreaker: CircuitBreaker,
+    private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -43,8 +46,8 @@ class TaskSubmitConsumer(
             log.warn("Task {} not found, skipping", message.taskId)
             return
         }
-        if (task.status != TaskStatus.PENDING) {
-            log.info("Task {} already in status {}, skipping", task.id, task.status)
+        if (task.state != TaskStatus.PENDING) {
+            log.info("Task {} already in state {}, skipping", task.id, task.state)
             return
         }
 
@@ -54,8 +57,8 @@ class TaskSubmitConsumer(
                     Instant
                         .now()
                         .plus(Duration.ofMillis(2000 + Random.nextLong(0, 2000)))
-                val updated = task.withJobId(result.jobId).withNextPoll(nextPollAt)
-                updated.transitionTo(TaskStatus.SUBMITTED)
+                val prepared = task.withNextPoll(nextPollAt)
+                val updated = sm.fire(prepared, TaskEvent.Submit(result.jobId)).context
                 taskRepository.save(updated)
                 circuitBreaker.recordSuccess()
                 log.info("Task {} submitted with jobId {}", task.id, result.jobId)
@@ -81,7 +84,7 @@ class TaskSubmitConsumer(
         log.warn("Task {} reached DLT after all retries", message.taskId)
 
         val task = taskRepository.findById(message.taskId) ?: return
-        if (task.status.isTerminal()) return
+        if (task.state.isTerminal()) return
 
         failTask(task, "Submit failed after all retries (DLT)")
     }
@@ -90,8 +93,7 @@ class TaskSubmitConsumer(
         task: Task,
         reason: String,
     ) {
-        val updated = task.withFailReason(reason).withNextPoll(null)
-        updated.transitionTo(TaskStatus.FAILED)
+        val updated = sm.fire(task, TaskEvent.Fail(reason)).context
         taskRepository.save(updated)
     }
 }

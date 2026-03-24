@@ -1,9 +1,12 @@
 package com.example.imageprocess.application
 
+import com.example.imageprocess.domain.model.Task
+import com.example.imageprocess.domain.model.TaskEvent
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.TaskEventPublisher
 import com.example.imageprocess.domain.port.outbound.TaskRepository
+import com.example.imageprocess.domain.statemachine.core.StateMachine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -23,6 +26,7 @@ class TaskPollingService(
     private val taskEventPublisher: TaskEventPublisher,
     private val taskPollExecutor: TaskPollExecutor,
     private val circuitBreaker: CircuitBreaker,
+    private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
     @Value("\${polling.budget-per-tick}") private val budgetPerTick: Int,
     @Value("\${polling.base-delay-ms}") private val baseDelayMs: Long,
 ) {
@@ -59,15 +63,15 @@ class TaskPollingService(
         val tasks = taskRepository.findByStatusIn(incompleteStatuses)
 
         tasks.forEach { task ->
-            if (task.status == TaskStatus.PENDING && task.jobId == null) {
+            if (task.state == TaskStatus.PENDING && task.jobId == null) {
                 taskEventPublisher.publishSubmitTask(task.id, task.imageUrl)
                 log.info("Republished submit event for pending task {}", task.id)
             } else {
                 val nextPollAt = Instant.now().plus(Duration.ofMillis(Random.nextLong(0, baseDelayMs)))
-                val updated = task.withNextPoll(nextPollAt)
+                var updated = task.withNextPoll(nextPollAt)
 
-                if (task.status == TaskStatus.RETRY_WAITING) {
-                    updated.transitionTo(TaskStatus.SUBMITTED)
+                if (task.state == TaskStatus.RETRY_WAITING) {
+                    updated = sm.fire(updated, TaskEvent.RecoverToSubmitted).context
                 }
 
                 taskRepository.save(updated)

@@ -1,6 +1,6 @@
 package com.example.imageprocess.domain.model
 
-import com.example.imageprocess.domain.exception.InvalidTaskStateTransitionException
+import com.example.imageprocess.domain.statemachine.core.Stateful
 import java.security.MessageDigest
 import java.time.Instant
 
@@ -8,7 +8,7 @@ class Task(
     val id: String,
     val imageUrl: String,
     val fingerprint: String = computeFingerprint(imageUrl),
-    status: TaskStatus = TaskStatus.PENDING,
+    override val state: TaskStatus = TaskStatus.PENDING,
     val jobId: String? = null,
     val result: String? = null,
     val failReason: String? = null,
@@ -18,23 +18,30 @@ class Task(
     val version: Long = 0,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-) {
-    var status: TaskStatus = status
-        private set
-
-    fun transitionTo(newStatus: TaskStatus) {
-        if (!TaskStatus.canTransition(status, newStatus)) {
-            throw InvalidTaskStateTransitionException(status, newStatus)
-        }
-        status = newStatus
-    }
+) : Stateful<TaskStatus, Task> {
+    override fun withState(newState: TaskStatus): Task =
+        Task(
+            id = id,
+            imageUrl = imageUrl,
+            fingerprint = fingerprint,
+            state = newState,
+            jobId = jobId,
+            result = result,
+            failReason = failReason,
+            retryCount = retryCount,
+            pollCount = pollCount,
+            nextPollAt = nextPollAt,
+            version = version,
+            createdAt = createdAt,
+            updatedAt = Instant.now(),
+        )
 
     fun withJobId(jobId: String): Task =
         Task(
             id = id,
             imageUrl = imageUrl,
             fingerprint = fingerprint,
-            status = status,
+            state = state,
             jobId = jobId,
             result = result,
             failReason = failReason,
@@ -51,7 +58,7 @@ class Task(
             id = id,
             imageUrl = imageUrl,
             fingerprint = fingerprint,
-            status = status,
+            state = state,
             jobId = jobId,
             result = result,
             failReason = failReason,
@@ -68,7 +75,7 @@ class Task(
             id = id,
             imageUrl = imageUrl,
             fingerprint = fingerprint,
-            status = status,
+            state = state,
             jobId = jobId,
             result = result,
             failReason = reason,
@@ -85,7 +92,7 @@ class Task(
             id = id,
             imageUrl = imageUrl,
             fingerprint = fingerprint,
-            status = status,
+            state = state,
             jobId = jobId,
             result = result,
             failReason = failReason,
@@ -102,7 +109,7 @@ class Task(
             id = id,
             imageUrl = imageUrl,
             fingerprint = fingerprint,
-            status = status,
+            state = state,
             jobId = jobId,
             result = result,
             failReason = failReason,

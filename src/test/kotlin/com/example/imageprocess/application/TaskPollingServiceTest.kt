@@ -1,5 +1,6 @@
 package com.example.imageprocess.application
 
+import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.TaskEventPublisher
@@ -20,6 +21,7 @@ class TaskPollingServiceTest {
     private val taskEventPublisher = mockk<TaskEventPublisher>(relaxed = true)
     private val taskPollExecutor = mockk<TaskPollExecutor>(relaxed = true)
     private val circuitBreaker = mockk<CircuitBreaker>()
+    private val sm = TaskStateMachineConfig().taskStateMachine()
 
     private lateinit var service: TaskPollingService
 
@@ -31,6 +33,7 @@ class TaskPollingServiceTest {
                 taskEventPublisher = taskEventPublisher,
                 taskPollExecutor = taskPollExecutor,
                 circuitBreaker = circuitBreaker,
+                sm = sm,
                 budgetPerTick = 10,
                 baseDelayMs = 1000,
             )
@@ -86,25 +89,25 @@ class TaskPollingServiceTest {
     fun `recoverOnStartup should set nextPollAt for SUBMITTED tasks with jobId`() {
         val submittedTask = TaskFixture.submitted(id = "task-1", jobId = "job-1")
         every { taskRepository.findByStatusIn(any()) } returns listOf(submittedTask)
-        val saved = slot<com.example.imageprocess.domain.model.Task>()
+        val saved = slot<Task>()
         every { taskRepository.save(capture(saved)) } answers { saved.captured }
 
         service.recoverOnStartup()
 
         saved.captured.nextPollAt shouldNotBe null
-        saved.captured.status shouldBe TaskStatus.SUBMITTED
+        saved.captured.state shouldBe TaskStatus.SUBMITTED
     }
 
     @Test
     fun `recoverOnStartup should transition RETRY_WAITING to SUBMITTED`() {
-        val retryTask = TaskFixture.create(id = "task-1", status = TaskStatus.RETRY_WAITING, jobId = "job-1")
+        val retryTask = TaskFixture.create(id = "task-1", state = TaskStatus.RETRY_WAITING, jobId = "job-1")
         every { taskRepository.findByStatusIn(any()) } returns listOf(retryTask)
-        val saved = slot<com.example.imageprocess.domain.model.Task>()
+        val saved = slot<Task>()
         every { taskRepository.save(capture(saved)) } answers { saved.captured }
 
         service.recoverOnStartup()
 
-        saved.captured.status shouldBe TaskStatus.SUBMITTED
+        saved.captured.state shouldBe TaskStatus.SUBMITTED
         saved.captured.nextPollAt shouldNotBe null
     }
 }

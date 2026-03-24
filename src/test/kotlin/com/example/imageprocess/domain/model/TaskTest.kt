@@ -1,59 +1,37 @@
 package com.example.imageprocess.domain.model
 
-import com.example.imageprocess.domain.exception.InvalidTaskStateTransitionException
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 class TaskTest {
     @Test
-    fun `should create task with PENDING status`() {
+    fun `should create task with PENDING state`() {
         val task = Task(id = "01H5N0640J7Q", imageUrl = "https://example.com/image.png")
-        assertEquals(TaskStatus.PENDING, task.status)
-        assertNotNull(task.id)
-        assertNotNull(task.fingerprint)
+        task.state shouldBe TaskStatus.PENDING
+        task.id shouldNotBe null
+        task.fingerprint shouldNotBe null
     }
 
     @Test
     fun `should compute consistent fingerprint for same URL`() {
         val fp1 = Task.computeFingerprint("https://example.com/image.png")
         val fp2 = Task.computeFingerprint("https://example.com/image.png")
-        assertEquals(fp1, fp2)
+        fp1 shouldBe fp2
     }
 
     @Test
     fun `should compute different fingerprint for different URLs`() {
         val fp1 = Task.computeFingerprint("https://example.com/image1.png")
         val fp2 = Task.computeFingerprint("https://example.com/image2.png")
-        assert(fp1 != fp2)
+        fp1 shouldNotBe fp2
     }
 
     @Test
-    fun `should transition from PENDING to SUBMITTED`() {
+    fun `withState should change state`() {
         val task = Task(id = "01H5N0640J7Q", imageUrl = "https://example.com/image.png")
-        task.transitionTo(TaskStatus.SUBMITTED)
-        assertEquals(TaskStatus.SUBMITTED, task.status)
-    }
-
-    @Test
-    fun `should throw on invalid transition`() {
-        val task = Task(id = "01H5N0640J7Q", imageUrl = "https://example.com/image.png")
-        task.transitionTo(TaskStatus.SUBMITTED)
-        task.transitionTo(TaskStatus.PROCESSING)
-        task.transitionTo(TaskStatus.COMPLETED)
-        assertThrows<InvalidTaskStateTransitionException> {
-            task.transitionTo(TaskStatus.PENDING)
-        }
-    }
-
-    @Test
-    fun `should not allow transition from terminal state`() {
-        val task = Task(id = "01H5N0640J7Q", imageUrl = "https://example.com/image.png")
-        task.transitionTo(TaskStatus.FAILED)
-        assertThrows<InvalidTaskStateTransitionException> {
-            task.transitionTo(TaskStatus.SUBMITTED)
-        }
+        val updated = task.withState(TaskStatus.SUBMITTED)
+        updated.state shouldBe TaskStatus.SUBMITTED
     }
 
     @Test
@@ -65,7 +43,7 @@ class TaskTest {
                     .now()
                     .plusSeconds(10),
             )
-        assertEquals(1, retried.retryCount)
+        retried.retryCount shouldBe 1
     }
 
     @Test
@@ -77,6 +55,6 @@ class TaskTest {
                     .now()
                     .plusSeconds(5),
             )
-        assertEquals(1, polled.pollCount)
+        polled.pollCount shouldBe 1
     }
 }

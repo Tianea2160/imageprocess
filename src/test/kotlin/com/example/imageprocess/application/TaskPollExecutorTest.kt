@@ -23,6 +23,7 @@ class TaskPollExecutorTest {
     private val imageProcessor = mockk<ImageProcessor>()
     private val rateLimiter = mockk<RateLimiter>()
     private val circuitBreaker = mockk<CircuitBreaker>(relaxed = true)
+    private val sm = TaskStateMachineConfig().taskStateMachine()
 
     private lateinit var executor: TaskPollExecutor
 
@@ -34,6 +35,7 @@ class TaskPollExecutorTest {
                 imageProcessor = imageProcessor,
                 rateLimiter = rateLimiter,
                 circuitBreaker = circuitBreaker,
+                sm = sm,
                 baseDelayMs = 1000,
                 maxDelayMs = 30000,
                 maxRetryCount = 3,
@@ -42,7 +44,7 @@ class TaskPollExecutorTest {
 
     @Test
     fun `should skip when rate limiter rejects`() {
-        val task = TaskFixture.create(status = TaskStatus.SUBMITTED, jobId = "job-1")
+        val task = TaskFixture.create(state = TaskStatus.SUBMITTED, jobId = "job-1")
         every { rateLimiter.tryAcquire() } returns false
 
         executor.pollAndUpdateTask(task)
@@ -53,7 +55,7 @@ class TaskPollExecutorTest {
 
     @Test
     fun `should skip when task has no jobId`() {
-        val task = TaskFixture.create(status = TaskStatus.SUBMITTED)
+        val task = TaskFixture.create(state = TaskStatus.SUBMITTED)
         every { rateLimiter.tryAcquire() } returns true
 
         executor.pollAndUpdateTask(task)
@@ -72,7 +74,7 @@ class TaskPollExecutorTest {
 
         executor.pollAndUpdateTask(task)
 
-        saved.captured.status shouldBe TaskStatus.COMPLETED
+        saved.captured.state shouldBe TaskStatus.COMPLETED
         saved.captured.result shouldBe "done"
         saved.captured.nextPollAt shouldBe null
         verify { circuitBreaker.recordSuccess() }
@@ -89,14 +91,14 @@ class TaskPollExecutorTest {
 
         executor.pollAndUpdateTask(task)
 
-        saved.captured.status shouldBe TaskStatus.FAILED
+        saved.captured.state shouldBe TaskStatus.FAILED
         saved.captured.failReason shouldBe "Mock Worker returned FAILED"
         saved.captured.nextPollAt shouldBe null
     }
 
     @Test
     fun `should transition to PROCESSING and set nextPollAt on PROCESSING result`() {
-        val task = TaskFixture.create(status = TaskStatus.SUBMITTED, jobId = "job-1")
+        val task = TaskFixture.create(state = TaskStatus.SUBMITTED, jobId = "job-1")
         every { rateLimiter.tryAcquire() } returns true
         every { imageProcessor.getJobStatus("job-1") } returns
             StatusResult.Success(jobId = "job-1", status = WorkerJobStatus.PROCESSING, result = null)
@@ -105,13 +107,13 @@ class TaskPollExecutorTest {
 
         executor.pollAndUpdateTask(task)
 
-        saved.captured.status shouldBe TaskStatus.PROCESSING
+        saved.captured.state shouldBe TaskStatus.PROCESSING
         saved.captured.nextPollAt shouldNotBe null
     }
 
     @Test
     fun `should not re-transition when already PROCESSING`() {
-        val task = TaskFixture.create(status = TaskStatus.PROCESSING, jobId = "job-1")
+        val task = TaskFixture.create(state = TaskStatus.PROCESSING, jobId = "job-1")
         every { rateLimiter.tryAcquire() } returns true
         every { imageProcessor.getJobStatus("job-1") } returns
             StatusResult.Success(jobId = "job-1", status = WorkerJobStatus.PROCESSING, result = null)
@@ -120,13 +122,13 @@ class TaskPollExecutorTest {
 
         executor.pollAndUpdateTask(task)
 
-        saved.captured.status shouldBe TaskStatus.PROCESSING
+        saved.captured.state shouldBe TaskStatus.PROCESSING
         verify { taskRepository.save(any()) }
     }
 
     @Test
     fun `should transition to FAILED on non-retryable failure`() {
-        val task = TaskFixture.create(status = TaskStatus.SUBMITTED, jobId = "job-1")
+        val task = TaskFixture.create(state = TaskStatus.SUBMITTED, jobId = "job-1")
         every { rateLimiter.tryAcquire() } returns true
         every { imageProcessor.getJobStatus("job-1") } returns
             StatusResult.NonRetryableFailure(reason = "Bad request")
@@ -135,13 +137,13 @@ class TaskPollExecutorTest {
 
         executor.pollAndUpdateTask(task)
 
-        saved.captured.status shouldBe TaskStatus.FAILED
+        saved.captured.state shouldBe TaskStatus.FAILED
         saved.captured.failReason shouldBe "Bad request"
     }
 
     @Test
     fun `should transition to RETRY_WAITING on retryable failure`() {
-        val task = TaskFixture.create(status = TaskStatus.SUBMITTED, jobId = "job-1")
+        val task = TaskFixture.create(state = TaskStatus.SUBMITTED, jobId = "job-1")
         every { rateLimiter.tryAcquire() } returns true
         every { imageProcessor.getJobStatus("job-1") } returns
             StatusResult.RetryableFailure(reason = "Timeout")
@@ -150,14 +152,14 @@ class TaskPollExecutorTest {
 
         executor.pollAndUpdateTask(task)
 
-        saved.captured.status shouldBe TaskStatus.RETRY_WAITING
+        saved.captured.state shouldBe TaskStatus.RETRY_WAITING
         saved.captured.retryCount shouldBe 1
         verify { circuitBreaker.recordFailure() }
     }
 
     @Test
     fun `should transition to FAILED when max retry count exceeded`() {
-        val task = TaskFixture.create(status = TaskStatus.SUBMITTED, jobId = "job-1", retryCount = 3)
+        val task = TaskFixture.create(state = TaskStatus.SUBMITTED, jobId = "job-1", retryCount = 3)
         every { rateLimiter.tryAcquire() } returns true
         every { imageProcessor.getJobStatus("job-1") } returns
             StatusResult.RetryableFailure(reason = "Timeout")
@@ -166,7 +168,7 @@ class TaskPollExecutorTest {
 
         executor.pollAndUpdateTask(task)
 
-        saved.captured.status shouldBe TaskStatus.FAILED
+        saved.captured.state shouldBe TaskStatus.FAILED
         saved.captured.failReason shouldBe "Max retry count exceeded"
     }
 }

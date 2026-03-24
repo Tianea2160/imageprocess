@@ -1,6 +1,7 @@
 package com.example.imageprocess.application
 
 import com.example.imageprocess.domain.model.Task
+import com.example.imageprocess.domain.model.TaskEvent
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.ImageProcessor
@@ -8,6 +9,7 @@ import com.example.imageprocess.domain.port.outbound.RateLimiter
 import com.example.imageprocess.domain.port.outbound.StatusResult
 import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.port.outbound.WorkerJobStatus
+import com.example.imageprocess.domain.statemachine.core.StateMachine
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -24,6 +26,7 @@ class TaskPollExecutor(
     private val imageProcessor: ImageProcessor,
     private val rateLimiter: RateLimiter,
     private val circuitBreaker: CircuitBreaker,
+    private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
     @Value("\${polling.base-delay-ms}") private val baseDelayMs: Long,
     @Value("\${polling.max-delay-ms}") private val maxDelayMs: Long,
     @Value("\${polling.max-retry-count}") private val maxRetryCount: Int,
@@ -56,24 +59,23 @@ class TaskPollExecutor(
                 circuitBreaker.recordSuccess()
                 when (result.status) {
                     WorkerJobStatus.COMPLETED -> {
-                        val updated = task.withResult(result.result ?: "").withNextPoll(null)
-                        updated.transitionTo(TaskStatus.COMPLETED)
+                        val updated = sm.fire(task, TaskEvent.Complete(result.result ?: "")).context
                         taskRepository.save(updated)
                         log.info("Task {} completed", task.id)
                     }
 
                     WorkerJobStatus.FAILED -> {
-                        val updated = task.withFailReason("Mock Worker returned FAILED").withNextPoll(null)
-                        updated.transitionTo(TaskStatus.FAILED)
+                        val updated = sm.fire(task, TaskEvent.Fail("Mock Worker returned FAILED")).context
                         taskRepository.save(updated)
                         log.warn("Task {} failed from Mock Worker", task.id)
                     }
 
                     WorkerJobStatus.PROCESSING -> {
-                        if (task.status != TaskStatus.PROCESSING) {
-                            task.transitionTo(TaskStatus.PROCESSING)
+                        var current = task
+                        if (task.state != TaskStatus.PROCESSING) {
+                            current = sm.fire(task, TaskEvent.StartProcessing).context
                         }
-                        val updated = task.withNextPoll(computeNextPollAt(task.pollCount))
+                        val updated = current.withNextPoll(computeNextPollAt(task.pollCount))
                         taskRepository.save(updated)
                     }
                 }
@@ -96,8 +98,7 @@ class TaskPollExecutor(
         reason: String,
     ) {
         log.warn("Task {} failed (non-retryable): {}", task.id, reason)
-        val updated = task.withFailReason(reason).withNextPoll(null)
-        updated.transitionTo(TaskStatus.FAILED)
+        val updated = sm.fire(task, TaskEvent.Fail(reason)).context
         taskRepository.save(updated)
     }
 
@@ -108,8 +109,8 @@ class TaskPollExecutor(
         }
 
         val nextPollAt = computeNextPollAt(task.retryCount)
-        val updated = task.withRetry(nextPollAt)
-        updated.transitionTo(TaskStatus.RETRY_WAITING)
+        val prepared = task.withRetry(nextPollAt)
+        val updated = sm.fire(prepared, TaskEvent.RetryWait).context
         taskRepository.save(updated)
     }
 

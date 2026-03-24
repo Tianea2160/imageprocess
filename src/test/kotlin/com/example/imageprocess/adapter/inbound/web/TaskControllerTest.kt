@@ -128,7 +128,7 @@ class TaskControllerTest {
 
     @Test
     fun `GET list should filter by status`() {
-        val tasks = listOf(TaskFixture.create(id = "task-1", status = TaskStatus.COMPLETED))
+        val tasks = listOf(TaskFixture.create(id = "task-1", state = TaskStatus.COMPLETED))
         val page = PageImpl(tasks, PageRequest.of(0, 20), 1)
         every { taskUseCase.listTasks(any(), eq(TaskStatus.COMPLETED)) } returns page
 

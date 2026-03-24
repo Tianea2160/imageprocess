@@ -29,7 +29,7 @@ data class TaskResponse(
             TaskResponse(
                 taskId = task.id,
                 imageUrl = task.imageUrl,
-                status = task.status,
+                status = task.state,
                 result = task.result,
                 failReason = task.failReason,
                 retryCount = task.retryCount,
@@ -52,7 +52,7 @@ data class CreateTaskResponse(
         fun from(task: Task): CreateTaskResponse =
             CreateTaskResponse(
                 taskId = task.id,
-                status = task.status,
+                status = task.state,
                 createdAt = task.createdAt,
             )
     }

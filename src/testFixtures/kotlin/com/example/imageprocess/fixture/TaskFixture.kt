@@ -18,7 +18,7 @@ object TaskFixture {
     fun create(
         id: String = "01H5N0640J7Q",
         imageUrl: String = "https://example.com/image.png",
-        status: TaskStatus = TaskStatus.PENDING,
+        state: TaskStatus = TaskStatus.PENDING,
         jobId: String? = null,
         result: String? = null,
         failReason: String? = null,
@@ -26,25 +26,19 @@ object TaskFixture {
         pollCount: Int = 0,
         nextPollAt: Instant? = null,
         version: Long = 0,
-    ): Task {
-        val task =
-            Task(
-                id = id,
-                imageUrl = imageUrl,
-                status = TaskStatus.PENDING,
-                jobId = jobId,
-                result = result,
-                failReason = failReason,
-                retryCount = retryCount,
-                pollCount = pollCount,
-                nextPollAt = nextPollAt,
-                version = version,
-            )
-        if (status != TaskStatus.PENDING) {
-            applyStatus(task, status)
-        }
-        return task
-    }
+    ): Task =
+        Task(
+            id = id,
+            imageUrl = imageUrl,
+            state = state,
+            jobId = jobId,
+            result = result,
+            failReason = failReason,
+            retryCount = retryCount,
+            pollCount = pollCount,
+            nextPollAt = nextPollAt,
+            version = version,
+        )
 
     fun random(): Task = fixtureMonkey.giveMeOne<Task>()
 
@@ -54,27 +48,11 @@ object TaskFixture {
         id: String = "01H5N0640J7Q",
         jobId: String = "job-1",
         nextPollAt: Instant? = Instant.now().plusSeconds(10),
-    ): Task = create(id = id, status = TaskStatus.SUBMITTED, jobId = jobId, nextPollAt = nextPollAt)
+    ): Task = create(id = id, state = TaskStatus.SUBMITTED, jobId = jobId, nextPollAt = nextPollAt)
 
     fun processing(
         id: String = "01H5N0640J7Q",
         jobId: String = "job-1",
         nextPollAt: Instant? = Instant.now().plusSeconds(10),
-    ): Task = create(id = id, status = TaskStatus.PROCESSING, jobId = jobId, nextPollAt = nextPollAt)
-
-    private fun applyStatus(
-        task: Task,
-        target: TaskStatus,
-    ) {
-        val path =
-            when (target) {
-                TaskStatus.PENDING -> emptyList()
-                TaskStatus.SUBMITTED -> listOf(TaskStatus.SUBMITTED)
-                TaskStatus.PROCESSING -> listOf(TaskStatus.SUBMITTED, TaskStatus.PROCESSING)
-                TaskStatus.COMPLETED -> listOf(TaskStatus.SUBMITTED, TaskStatus.PROCESSING, TaskStatus.COMPLETED)
-                TaskStatus.FAILED -> listOf(TaskStatus.FAILED)
-                TaskStatus.RETRY_WAITING -> listOf(TaskStatus.SUBMITTED, TaskStatus.RETRY_WAITING)
-            }
-        path.forEach { task.transitionTo(it) }
-    }
+    ): Task = create(id = id, state = TaskStatus.PROCESSING, jobId = jobId, nextPollAt = nextPollAt)
 }
