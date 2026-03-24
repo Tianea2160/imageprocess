@@ -36,6 +36,7 @@ dependencies {
     implementation("io.hypersistence:hypersistence-tsid:2.1.4")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    implementation("org.springframework.boot:spring-boot-starter-kafka")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
@@ -45,6 +46,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("com.redis:testcontainers-redis:2.2.4")
+    testImplementation("org.springframework.kafka:spring-kafka-test")
+    testImplementation("org.testcontainers:testcontainers-kafka")
     testImplementation("com.lemonappdev:konsist:0.17.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

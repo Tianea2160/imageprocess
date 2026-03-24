@@ -5,7 +5,7 @@ import com.example.imageprocess.domain.exception.TaskNotFoundException
 import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.inbound.TaskUseCase
-import com.example.imageprocess.domain.port.outbound.ImageProcessor
+import com.example.imageprocess.domain.port.outbound.TaskEventPublisher
 import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.port.outbound.TsidGenerator
 import org.slf4j.LoggerFactory
@@ -22,7 +22,7 @@ import kotlin.random.Random
 @Transactional
 class TaskService(
     private val taskRepository: TaskRepository,
-    private val imageProcessor: ImageProcessor,
+    private val taskEventPublisher: TaskEventPublisher,
     private val tsidGenerator: TsidGenerator,
     @Value("\${polling.initial-delay-ms}") private val initialDelayMs: Long,
     @Value("\${polling.spread-window-ms}") private val spreadWindowMs: Long,
@@ -52,7 +52,7 @@ class TaskService(
         val task = Task(id = tsidGenerator.generate(), imageUrl = imageUrl, nextPollAt = nextPollAt)
         val saved = taskRepository.save(task)
 
-        submitToWorkerAsync(saved)
+        taskEventPublisher.publishSubmitTask(saved.id, saved.imageUrl)
 
         return saved
     }
@@ -67,15 +67,4 @@ class TaskService(
         pageable: Pageable,
         status: TaskStatus?,
     ): Page<Task> = taskRepository.findAll(pageable, status)
-
-    private fun submitToWorkerAsync(task: Task) {
-        try {
-            val result = imageProcessor.submitImage(task.imageUrl)
-            val updated = task.withJobId(result.jobId)
-            updated.transitionTo(TaskStatus.SUBMITTED)
-            taskRepository.save(updated)
-        } catch (e: Exception) {
-            log.warn("Failed to submit task {} to worker, will retry via polling: {}", task.id, e.message)
-        }
-    }
 }

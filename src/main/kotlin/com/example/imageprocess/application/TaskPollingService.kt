@@ -5,7 +5,10 @@ import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.ImageProcessor
 import com.example.imageprocess.domain.port.outbound.RateLimiter
+import com.example.imageprocess.domain.port.outbound.StatusResult
+import com.example.imageprocess.domain.port.outbound.TaskEventPublisher
 import com.example.imageprocess.domain.port.outbound.TaskRepository
+import com.example.imageprocess.domain.port.outbound.WorkerJobStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -26,6 +29,7 @@ import kotlin.random.Random
 class TaskPollingService(
     private val taskRepository: TaskRepository,
     private val imageProcessor: ImageProcessor,
+    private val taskEventPublisher: TaskEventPublisher,
     private val rateLimiter: RateLimiter,
     private val circuitBreaker: CircuitBreaker,
     @Value("\${polling.budget-per-tick}") private val budgetPerTick: Int,
@@ -64,79 +68,78 @@ class TaskPollingService(
                 return
             }
 
-        try {
-            if (!rateLimiter.tryAcquire()) {
-                log.debug("Rate limiter rejected poll for task {}", task.id)
-                return
-            }
+        if (!rateLimiter.tryAcquire()) {
+            log.debug("Rate limiter rejected poll for task {}", task.id)
+            return
+        }
 
-            val jobId = task.jobId
-            if (jobId == null) {
-                handlePendingTask(task)
-                return
-            }
+        val jobId = task.jobId
+        if (jobId == null) {
+            log.debug("Task {} has no jobId, skipping poll (Kafka consumer handles submit)", task.id)
+            return
+        }
 
-            val statusResult = imageProcessor.getJobStatus(jobId)
-            circuitBreaker.recordSuccess()
+        val statusResult = imageProcessor.getJobStatus(jobId)
+        applyStatusResult(task, statusResult)
+    }
 
-            when (statusResult.status) {
-                "COMPLETED" -> {
-                    val updated = task.withResult(statusResult.result ?: "").withNextPoll(Instant.MAX)
-                    updated.transitionTo(TaskStatus.COMPLETED)
-                    taskRepository.save(updated)
-                    log.info("Task {} completed", task.id)
-                }
+    private fun applyStatusResult(
+        task: Task,
+        result: StatusResult,
+    ) {
+        when (result) {
+            is StatusResult.Success -> {
+                circuitBreaker.recordSuccess()
+                when (result.status) {
+                    WorkerJobStatus.COMPLETED -> {
+                        val updated = task.withResult(result.result ?: "").withNextPoll(Instant.MAX)
+                        updated.transitionTo(TaskStatus.COMPLETED)
+                        taskRepository.save(updated)
+                        log.info("Task {} completed", task.id)
+                    }
 
-                "FAILED" -> {
-                    val updated = task.withFailReason("Mock Worker returned FAILED").withNextPoll(Instant.MAX)
-                    updated.transitionTo(TaskStatus.FAILED)
-                    taskRepository.save(updated)
-                    log.warn("Task {} failed from Mock Worker", task.id)
-                }
+                    WorkerJobStatus.FAILED -> {
+                        val updated = task.withFailReason("Mock Worker returned FAILED").withNextPoll(Instant.MAX)
+                        updated.transitionTo(TaskStatus.FAILED)
+                        taskRepository.save(updated)
+                        log.warn("Task {} failed from Mock Worker", task.id)
+                    }
 
-                "PROCESSING" -> {
-                    val transitioned =
+                    WorkerJobStatus.PROCESSING -> {
                         if (task.status != TaskStatus.PROCESSING) {
-                            task.also { it.transitionTo(TaskStatus.PROCESSING) }
-                        } else {
-                            task
+                            task.transitionTo(TaskStatus.PROCESSING)
                         }
-                    val updated = transitioned.withNextPoll(computeNextPollAt(task.pollCount))
-                    taskRepository.save(updated)
-                }
-
-                else -> {
-                    val updated = task.withNextPoll(computeNextPollAt(task.pollCount))
-                    taskRepository.save(updated)
+                        val updated = task.withNextPoll(computeNextPollAt(task.pollCount))
+                        taskRepository.save(updated)
+                    }
                 }
             }
-        } catch (e: Exception) {
-            circuitBreaker.recordFailure()
-            log.error("Error polling task {}: {}", task.id, e.message, e)
-            handlePollFailure(task)
+
+            is StatusResult.NonRetryableFailure -> {
+                failTask(task, result.reason)
+            }
+
+            is StatusResult.RetryableFailure -> {
+                circuitBreaker.recordFailure()
+                log.warn("Task {} poll failed (retryable): {}", task.id, result.reason)
+                handlePollFailure(task)
+            }
         }
     }
 
-    private fun handlePendingTask(task: Task) {
-        try {
-            val result = imageProcessor.submitImage(task.imageUrl)
-            val updated = task.withJobId(result.jobId).withNextPoll(computeNextPollAt(0))
-            updated.transitionTo(TaskStatus.SUBMITTED)
-            taskRepository.save(updated)
-            circuitBreaker.recordSuccess()
-        } catch (e: Exception) {
-            circuitBreaker.recordFailure()
-            log.error("Error submitting task {}: {}", task.id, e.message, e)
-            handlePollFailure(task)
-        }
+    private fun failTask(
+        task: Task,
+        reason: String,
+    ) {
+        log.warn("Task {} failed (non-retryable): {}", task.id, reason)
+        val updated = task.withFailReason(reason).withNextPoll(Instant.MAX)
+        updated.transitionTo(TaskStatus.FAILED)
+        taskRepository.save(updated)
     }
 
     private fun handlePollFailure(task: Task) {
         if (task.retryCount >= maxRetryCount) {
-            val updated = task.withFailReason("Max retry count exceeded")
-            updated.transitionTo(TaskStatus.FAILED)
-            taskRepository.save(updated)
-            log.warn("Task {} failed after {} retries", task.id, task.retryCount)
+            failTask(task, "Max retry count exceeded")
             return
         }
 
@@ -165,14 +168,19 @@ class TaskPollingService(
         val tasks = taskRepository.findByStatusIn(incompleteStatuses)
 
         tasks.forEach { task ->
-            val nextPollAt = Instant.now().plus(Duration.ofMillis(Random.nextLong(0, baseDelayMs)))
-            val updated = task.withNextPoll(nextPollAt)
+            if (task.status == TaskStatus.PENDING && task.jobId == null) {
+                taskEventPublisher.publishSubmitTask(task.id, task.imageUrl)
+                log.info("Republished submit event for pending task {}", task.id)
+            } else {
+                val nextPollAt = Instant.now().plus(Duration.ofMillis(Random.nextLong(0, baseDelayMs)))
+                val updated = task.withNextPoll(nextPollAt)
 
-            if (task.status == TaskStatus.RETRY_WAITING) {
-                updated.transitionTo(TaskStatus.SUBMITTED)
+                if (task.status == TaskStatus.RETRY_WAITING) {
+                    updated.transitionTo(TaskStatus.SUBMITTED)
+                }
+
+                taskRepository.save(updated)
             }
-
-            taskRepository.save(updated)
         }
 
         log.info("Recovered {} incomplete tasks", tasks.size)
