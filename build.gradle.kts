@@ -6,6 +6,8 @@ plugins {
     kotlin("plugin.jpa") version "2.3.20"
     kotlin("kapt") version "2.3.20"
     id("org.jlleitschuh.gradle.ktlint") version "12.3.0"
+    id("org.jetbrains.kotlinx.kover") version "0.9.1"
+    `java-test-fixtures`
 }
 
 group = "com.example"
@@ -49,6 +51,10 @@ dependencies {
     testImplementation("com.redis:testcontainers-redis:2.2.4")
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("org.testcontainers:testcontainers-kafka")
+    testFixturesImplementation("com.navercorp.fixturemonkey:fixture-monkey-starter-kotlin:1.1.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    testImplementation("io.mockk:mockk:1.14.3")
+    testImplementation("io.kotest:kotest-assertions-core:5.9.1")
     testImplementation("com.lemonappdev:konsist:0.17.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -67,6 +73,17 @@ allOpen {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+kapt {
+    correctErrorTypes = true
+}
+
+afterEvaluate {
+    tasks.findByName("kaptTestKotlin")?.enabled = false
+    tasks.findByName("kaptGenerateStubsTestKotlin")?.enabled = false
+    tasks.findByName("kaptTestFixturesKotlin")?.enabled = false
+    tasks.findByName("kaptGenerateStubsTestFixturesKotlin")?.enabled = false
 }
 
 ktlint {
