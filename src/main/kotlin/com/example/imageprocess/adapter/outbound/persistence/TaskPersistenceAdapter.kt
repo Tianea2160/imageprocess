@@ -3,7 +3,9 @@ package com.example.imageprocess.adapter.outbound.persistence
 import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.TaskRepository
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
 import java.time.Instant
 
@@ -28,22 +30,15 @@ class TaskPersistenceAdapter(
     override fun findByStatusIn(statuses: List<TaskStatus>): List<Task> = jpaRepository.findByStatusIn(statuses).map { it.toDomain() }
 
     override fun findAll(
-        page: Int,
-        size: Int,
+        pageable: Pageable,
         status: TaskStatus?,
-    ): List<Task> {
-        val pageable = PageRequest.of(page, size)
-        return if (status != null) {
-            jpaRepository.findByStatus(status, pageable)
-        } else {
-            jpaRepository.findAll(pageable).content
-        }.map { it.toDomain() }
+    ): Page<Task> {
+        val entityPage =
+            if (status != null) {
+                jpaRepository.findByStatus(status, pageable)
+            } else {
+                jpaRepository.findAll(pageable)
+            }
+        return entityPage.map { it.toDomain() }
     }
-
-    override fun count(status: TaskStatus?): Long =
-        if (status != null) {
-            jpaRepository.countByStatus(status)
-        } else {
-            jpaRepository.count()
-        }
 }

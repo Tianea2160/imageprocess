@@ -60,16 +60,21 @@ class ArchitectureConventionTest {
     }
 
     @Test
-    fun `domain layer should not use Spring or JPA annotations`() {
+    fun `domain layer should not use Spring or JPA annotations except Page in ports`() {
+        val allowedInPorts = setOf("org.springframework.data.domain.")
+
         Konsist
             .scopeFromProject()
             .files
             .filter { it.path.contains("/domain/") }
             .assertFalse { file ->
-                file.imports.any {
-                    it.name.startsWith("org.springframework.") ||
-                        it.name.startsWith("jakarta.persistence.") ||
-                        it.name.startsWith("org.hibernate.")
+                val isPort = file.path.contains("/domain/port/")
+                file.imports.any { import ->
+                    val isSpring = import.name.startsWith("org.springframework.")
+                    val isJpa = import.name.startsWith("jakarta.persistence.")
+                    val isHibernate = import.name.startsWith("org.hibernate.")
+                    val isAllowed = isPort && allowedInPorts.any { import.name.startsWith(it) }
+                    (isSpring || isJpa || isHibernate) && !isAllowed
                 }
             }
     }
@@ -100,6 +105,59 @@ class ArchitectureConventionTest {
                     annotation.name == "Schema" &&
                         annotation.text.contains("requiredMode")
                 }
+            }
+    }
+
+    @Test
+    fun `controller should not have swagger annotations`() {
+        val swaggerAnnotations =
+            setOf("Operation", "Parameter", "ApiResponse", "ApiResponses", "Tag")
+
+        Konsist
+            .scopeFromProject()
+            .classes()
+            .withAnnotationOf(RestController::class)
+            .assertFalse { clazz ->
+                clazz.annotations.any { it.name in swaggerAnnotations } ||
+                    clazz.functions().any { function ->
+                        function.annotations.any { it.name in swaggerAnnotations } ||
+                            function.parameters.any { param ->
+                                param.annotations.any { it.name in swaggerAnnotations }
+                            }
+                    }
+            }
+    }
+
+    @Test
+    fun `api interface should not have spring web annotations`() {
+        val springWebAnnotations =
+            setOf(
+                "GetMapping",
+                "PostMapping",
+                "PutMapping",
+                "DeleteMapping",
+                "PatchMapping",
+                "RequestMapping",
+                "RequestBody",
+                "PathVariable",
+                "RequestParam",
+                "ResponseStatus",
+                "RestController",
+            )
+
+        Konsist
+            .scopeFromProject()
+            .interfaces()
+            .withNameEndingWith("Api")
+            .filter { it.resideInPath("adapter/inbound/web") }
+            .assertFalse { iface ->
+                iface.annotations.any { it.name in springWebAnnotations } ||
+                    iface.functions().any { function ->
+                        function.annotations.any { it.name in springWebAnnotations } ||
+                            function.parameters.any { param ->
+                                param.annotations.any { it.name in springWebAnnotations }
+                            }
+                    }
             }
     }
 }

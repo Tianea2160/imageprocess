@@ -8,6 +8,8 @@ import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.port.outbound.TsidGenerator
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
@@ -60,13 +62,9 @@ class TaskService(
 
     @Transactional(readOnly = true)
     override fun listTasks(
-        page: Int,
-        size: Int,
+        pageable: Pageable,
         status: TaskStatus?,
-    ): List<Task> = taskRepository.findAll(page, size, status)
-
-    @Transactional(readOnly = true)
-    override fun countTasks(status: TaskStatus?): Long = taskRepository.count(status)
+    ): Page<Task> = taskRepository.findAll(pageable, status)
 
     private fun submitToWorkerAsync(task: Task) {
         try {

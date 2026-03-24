@@ -39,18 +39,6 @@ data class TaskResponse(
     }
 }
 
-@Schema(description = "작업 목록 응답")
-data class TaskListResponse(
-    @Schema(description = "작업 목록", requiredMode = Schema.RequiredMode.REQUIRED)
-    val tasks: List<TaskResponse>,
-    @Schema(description = "현재 페이지", requiredMode = Schema.RequiredMode.REQUIRED)
-    val page: Int,
-    @Schema(description = "페이지 크기", requiredMode = Schema.RequiredMode.REQUIRED)
-    val size: Int,
-    @Schema(description = "전체 건수", requiredMode = Schema.RequiredMode.REQUIRED)
-    val totalCount: Long,
-)
-
 @Schema(description = "작업 생성 응답")
 data class CreateTaskResponse(
     @Schema(description = "작업 ID", example = "01226N0640J7Q", requiredMode = Schema.RequiredMode.REQUIRED)

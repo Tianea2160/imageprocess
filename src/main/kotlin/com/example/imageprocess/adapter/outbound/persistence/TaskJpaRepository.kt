@@ -3,6 +3,7 @@ package com.example.imageprocess.adapter.outbound.persistence
 import com.example.imageprocess.domain.model.TaskStatus
 import jakarta.persistence.LockModeType
 import jakarta.persistence.QueryHint
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
@@ -33,7 +34,5 @@ interface TaskJpaRepository : JpaRepository<TaskJpaEntity, String> {
     fun findByStatus(
         status: TaskStatus,
         pageable: Pageable,
-    ): List<TaskJpaEntity>
-
-    fun countByStatus(status: TaskStatus): Long
+    ): Page<TaskJpaEntity>
 }

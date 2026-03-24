@@ -2,6 +2,8 @@ package com.example.imageprocess.domain.port.inbound
 
 import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 
 interface TaskUseCase {
     fun createTask(imageUrl: String): Task
@@ -9,10 +11,7 @@ interface TaskUseCase {
     fun getTask(taskId: String): Task
 
     fun listTasks(
-        page: Int,
-        size: Int,
+        pageable: Pageable,
         status: TaskStatus?,
-    ): List<Task>
-
-    fun countTasks(status: TaskStatus?): Long
+    ): Page<Task>
 }
