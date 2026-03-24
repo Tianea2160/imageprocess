@@ -2,10 +2,9 @@ package com.example.imageprocess.domain.model
 
 import java.security.MessageDigest
 import java.time.Instant
-import java.util.UUID
 
 class Task(
-    val id: UUID = UUID.randomUUID(),
+    val id: String,
     val imageUrl: String,
     val fingerprint: String = computeFingerprint(imageUrl),
     status: TaskStatus = TaskStatus.PENDING,

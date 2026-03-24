@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import java.util.UUID
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -36,7 +35,7 @@ class TaskController(
     @Operation(summary = "작업 상태 조회", description = "작업 ID로 현재 처리 상태를 조회합니다.")
     fun getTask(
         @Parameter(description = "작업 ID", required = true)
-        @PathVariable taskId: UUID,
+        @PathVariable taskId: String,
     ): TaskResponse {
         val task = taskUseCase.getTask(taskId)
         return TaskResponse.from(task)

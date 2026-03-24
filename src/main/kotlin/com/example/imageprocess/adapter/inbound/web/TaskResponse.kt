@@ -4,12 +4,11 @@ import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
-import java.util.UUID
 
 @Schema(description = "작업 상세 응답")
 data class TaskResponse(
-    @Schema(description = "작업 ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    val taskId: UUID,
+    @Schema(description = "작업 ID", example = "01226N0640J7Q", requiredMode = Schema.RequiredMode.REQUIRED)
+    val taskId: String,
     @Schema(description = "이미지 URL", requiredMode = Schema.RequiredMode.REQUIRED)
     val imageUrl: String,
     @Schema(description = "작업 상태", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -54,8 +53,8 @@ data class TaskListResponse(
 
 @Schema(description = "작업 생성 응답")
 data class CreateTaskResponse(
-    @Schema(description = "작업 ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    val taskId: UUID,
+    @Schema(description = "작업 ID", example = "01226N0640J7Q", requiredMode = Schema.RequiredMode.REQUIRED)
+    val taskId: String,
     @Schema(description = "작업 상태", requiredMode = Schema.RequiredMode.REQUIRED)
     val status: TaskStatus,
     @Schema(description = "생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)

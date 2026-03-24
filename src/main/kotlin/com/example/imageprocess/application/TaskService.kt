@@ -5,13 +5,13 @@ import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.inbound.TaskUseCase
 import com.example.imageprocess.domain.port.outbound.ImageProcessor
 import com.example.imageprocess.domain.port.outbound.TaskRepository
+import com.example.imageprocess.domain.port.outbound.TsidGenerator
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 import kotlin.random.Random
 
 @Service
@@ -19,6 +19,7 @@ import kotlin.random.Random
 class TaskService(
     private val taskRepository: TaskRepository,
     private val imageProcessor: ImageProcessor,
+    private val tsidGenerator: TsidGenerator,
     @Value("\${polling.initial-delay-ms}") private val initialDelayMs: Long,
     @Value("\${polling.spread-window-ms}") private val spreadWindowMs: Long,
 ) : TaskUseCase {
@@ -44,7 +45,7 @@ class TaskService(
                 .plus(Duration.ofMillis(initialDelayMs))
                 .plus(Duration.ofMillis(Random.nextLong(0, spreadWindowMs)))
 
-        val task = Task(imageUrl = imageUrl, nextPollAt = nextPollAt)
+        val task = Task(id = tsidGenerator.generate(), imageUrl = imageUrl, nextPollAt = nextPollAt)
         val saved = taskRepository.save(task)
 
         submitToWorkerAsync(saved)
@@ -53,7 +54,7 @@ class TaskService(
     }
 
     @Transactional(readOnly = true)
-    override fun getTask(taskId: UUID): Task =
+    override fun getTask(taskId: String): Task =
         taskRepository.findById(taskId)
             ?: throw NoSuchElementException("Task not found: $taskId")
 

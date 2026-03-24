@@ -9,9 +9,8 @@ import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.jpa.repository.QueryHints
 import java.time.Instant
-import java.util.UUID
 
-interface TaskJpaRepository : JpaRepository<TaskJpaEntity, UUID> {
+interface TaskJpaRepository : JpaRepository<TaskJpaEntity, String> {
     fun findByFingerprint(fingerprint: String): TaskJpaEntity?
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.random.Random
@@ -58,7 +57,7 @@ class TaskPollingService(
         }
 
     @Transactional
-    fun pollAndUpdateTask(taskId: UUID) {
+    fun pollAndUpdateTask(taskId: String) {
         val task =
             taskRepository.findById(taskId) ?: run {
                 log.warn("Task {} not found during poll", taskId)

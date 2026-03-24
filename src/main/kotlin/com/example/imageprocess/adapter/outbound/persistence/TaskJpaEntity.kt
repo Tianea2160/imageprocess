@@ -12,7 +12,6 @@ import jakarta.persistence.Version
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.Instant
-import java.util.UUID
 
 @Entity
 @Table(name = "tasks")
@@ -20,7 +19,8 @@ import java.util.UUID
 @DynamicUpdate
 class TaskJpaEntity(
     @Id
-    val id: UUID = UUID.randomUUID(),
+    @Column(length = 13)
+    val id: String = "",
     @Column(nullable = false)
     val imageUrl: String = "",
     @Column(nullable = false, unique = true, length = 64)

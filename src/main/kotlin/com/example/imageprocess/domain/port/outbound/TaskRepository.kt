@@ -3,12 +3,11 @@ package com.example.imageprocess.domain.port.outbound
 import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import java.time.Instant
-import java.util.UUID
 
 interface TaskRepository {
     fun save(task: Task): Task
 
-    fun findById(id: UUID): Task?
+    fun findById(id: String): Task?
 
     fun findByFingerprint(fingerprint: String): Task?
 

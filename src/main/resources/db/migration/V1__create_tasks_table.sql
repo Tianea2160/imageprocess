@@ -1,6 +1,6 @@
 CREATE TABLE tasks
 (
-    id            UUID         NOT NULL DEFAULT gen_random_uuid(),
+    id            VARCHAR(13)  NOT NULL,
     image_url     TEXT         NOT NULL,
     fingerprint   VARCHAR(64)  NOT NULL,
     status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING',

@@ -6,7 +6,6 @@ import com.example.imageprocess.domain.port.outbound.TaskRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 import java.time.Instant
-import java.util.UUID
 
 @Component
 class TaskPersistenceAdapter(
@@ -17,7 +16,7 @@ class TaskPersistenceAdapter(
         return jpaRepository.save(entity).toDomain()
     }
 
-    override fun findById(id: UUID): Task? = jpaRepository.findById(id).orElse(null)?.toDomain()
+    override fun findById(id: String): Task? = jpaRepository.findById(id).orElse(null)?.toDomain()
 
     override fun findByFingerprint(fingerprint: String): Task? = jpaRepository.findByFingerprint(fingerprint)?.toDomain()
 
