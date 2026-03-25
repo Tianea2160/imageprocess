@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/imageprocess
+  kafka:
+    bootstrap-servers: kafka:9092

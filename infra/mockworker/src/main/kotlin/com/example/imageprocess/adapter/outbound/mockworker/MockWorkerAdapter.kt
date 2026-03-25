@@ -19,6 +19,9 @@ class MockWorkerAdapter(
             SubmitResult.Success(jobId = response.jobId)
         } catch (e: NonRetryableWorkerException) {
             SubmitResult.NonRetryableFailure(e.message ?: "Unknown")
+        } catch (e: RateLimitedWorkerException) {
+            log.warn("submitImage rate limited, retry-after: {}s", e.retryAfterSeconds)
+            SubmitResult.RetryableFailure("Rate limited: ${e.message}", e.retryAfterSeconds)
         } catch (e: RetryableWorkerException) {
             log.warn("submitImage failed after retries: {}", e.message)
             SubmitResult.RetryableFailure("submitImage failed after retries: ${e.message}")
@@ -34,6 +37,9 @@ class MockWorkerAdapter(
             )
         } catch (e: NonRetryableWorkerException) {
             StatusResult.NonRetryableFailure(e.message ?: "Unknown")
+        } catch (e: RateLimitedWorkerException) {
+            log.warn("getJobStatus rate limited, retry-after: {}s", e.retryAfterSeconds)
+            StatusResult.RetryableFailure("Rate limited: ${e.message}", e.retryAfterSeconds)
         } catch (e: RetryableWorkerException) {
             log.warn("getJobStatus failed after retries: {}", e.message)
             StatusResult.RetryableFailure("getJobStatus failed after retries: ${e.message}")

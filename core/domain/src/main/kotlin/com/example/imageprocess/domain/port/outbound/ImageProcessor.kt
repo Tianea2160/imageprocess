@@ -17,6 +17,7 @@ sealed class SubmitResult {
 
     data class RetryableFailure(
         val reason: String,
+        val retryAfterSeconds: Long? = null,
     ) : SubmitResult()
 }
 
@@ -33,6 +34,7 @@ sealed class StatusResult {
 
     data class RetryableFailure(
         val reason: String,
+        val retryAfterSeconds: Long? = null,
     ) : StatusResult()
 }
 

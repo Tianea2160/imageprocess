@@ -10,4 +10,5 @@ include(
     ":app-api",
     ":app-consumer",
     ":convention-test",
+    ":stress-test",
 )

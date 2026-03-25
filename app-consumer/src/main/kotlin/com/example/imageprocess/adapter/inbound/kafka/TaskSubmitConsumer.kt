@@ -71,7 +71,16 @@ class TaskSubmitConsumer(
 
             is SubmitResult.RetryableFailure -> {
                 circuitBreaker.recordFailure()
-                log.warn("Task {} submit failed (retryable): {}", task.id, result.reason)
+                if (result.retryAfterSeconds != null) {
+                    log.warn(
+                        "Task {} submit rate limited, retry-after: {}s, reason: {}",
+                        task.id,
+                        result.retryAfterSeconds,
+                        result.reason,
+                    )
+                } else {
+                    log.warn("Task {} submit failed (retryable): {}", task.id, result.reason)
+                }
                 throw RetryableSubmitException(result.reason)
             }
         }

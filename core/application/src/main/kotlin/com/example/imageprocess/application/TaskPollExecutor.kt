@@ -90,7 +90,7 @@ class TaskPollExecutor(
             is StatusResult.RetryableFailure -> {
                 circuitBreaker.recordFailure()
                 log.warn("Task {} poll failed (retryable): {}", task.id, result.reason)
-                handlePollFailure(task)
+                handlePollFailure(task, result.retryAfterSeconds)
             }
         }
     }
@@ -104,13 +104,21 @@ class TaskPollExecutor(
         taskRepository.save(updated)
     }
 
-    private fun handlePollFailure(task: Task) {
+    private fun handlePollFailure(
+        task: Task,
+        retryAfterSeconds: Long? = null,
+    ) {
         if (task.retryCount >= maxRetryCount) {
             failTask(task, "Max retry count exceeded")
             return
         }
 
-        val nextPollAt = computeNextPollAt(task.retryCount)
+        val nextPollAt =
+            if (retryAfterSeconds != null) {
+                Instant.now().plus(Duration.ofSeconds(retryAfterSeconds))
+            } else {
+                computeNextPollAt(task.retryCount)
+            }
         val prepared = task.withRetry(nextPollAt)
         val updated = sm.fire(prepared, TaskEvent.RetryWait).context
         taskRepository.save(updated)

@@ -56,14 +56,7 @@ class MockWorkerClient(
                 .body<MockWorkerProcessResponse>()
                 ?: throw RetryableWorkerException("Empty response from Mock Worker")
         } catch (e: RestClientResponseException) {
-            val detail = parseErrorDetail(e.responseBodyAsString)
-            val statusCode = e.statusCode.value()
-            if (statusCode in nonRetryableStatusCodes) {
-                log.warn("submitImage rejected with non-retryable status {}: {}", statusCode, detail)
-                throw NonRetryableWorkerException(detail, e)
-            }
-            log.warn("submitImage failed with status {}: {}", statusCode, detail)
-            throw RetryableWorkerException("Mock Worker returned $statusCode: $detail", e)
+            handleResponseError("submitImage", e)
         }
 
     @Retryable(
@@ -81,15 +74,27 @@ class MockWorkerClient(
                 .body<MockWorkerStatusResponse>()
                 ?: throw RetryableWorkerException("Empty response from Mock Worker")
         } catch (e: RestClientResponseException) {
-            val detail = parseErrorDetail(e.responseBodyAsString)
-            val statusCode = e.statusCode.value()
-            if (statusCode in nonRetryableStatusCodes) {
-                log.warn("getJobStatus rejected with non-retryable status {}: {}", statusCode, detail)
-                throw NonRetryableWorkerException(detail, e)
-            }
-            log.warn("getJobStatus failed with status {}: {}", statusCode, detail)
-            throw RetryableWorkerException("Mock Worker returned $statusCode: $detail", e)
+            handleResponseError("getJobStatus", e)
         }
+
+    private fun handleResponseError(
+        method: String,
+        e: RestClientResponseException,
+    ): Nothing {
+        val detail = parseErrorDetail(e.responseBodyAsString)
+        val statusCode = e.statusCode.value()
+        if (statusCode in nonRetryableStatusCodes) {
+            log.warn("{} rejected with non-retryable status {}: {}", method, statusCode, detail)
+            throw NonRetryableWorkerException(detail, e)
+        }
+        if (statusCode == 429) {
+            val retryAfter = e.responseHeaders?.getFirst("retry-after")?.toLongOrNull()
+            log.warn("{} rate limited (429), retry-after: {}s, detail: {}", method, retryAfter, detail)
+            throw RateLimitedWorkerException("Mock Worker returned 429: $detail", retryAfter, e)
+        }
+        log.warn("{} failed with status {}: {}", method, statusCode, detail)
+        throw RetryableWorkerException("Mock Worker returned $statusCode: $detail", e)
+    }
 
     private fun parseErrorDetail(body: String): String =
         try {
