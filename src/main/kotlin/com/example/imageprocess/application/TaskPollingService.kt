@@ -7,10 +7,6 @@ import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.TaskEventPublisher
 import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.statemachine.core.StateMachine
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -18,6 +14,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.Executors
 import kotlin.random.Random
 
 @Service
@@ -33,7 +30,8 @@ class TaskPollingService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(fixedDelayString = "\${polling.fixed-delay}")
-    suspend fun pollTasks() {
+    @Transactional(readOnly = true)
+    fun pollTasks() {
         if (circuitBreaker.isOpen()) {
             log.debug("Circuit breaker is open, skipping poll")
             return
@@ -42,11 +40,9 @@ class TaskPollingService(
         val tasks = taskRepository.findPollableTasks(Instant.now(), budgetPerTick)
         if (tasks.isEmpty()) return
 
-        coroutineScope {
-            tasks
-                .map { task ->
-                    async(Dispatchers.IO) { taskPollExecutor.pollAndUpdateTask(task) }
-                }.awaitAll()
+        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+            val futures = tasks.map { task -> executor.submit { taskPollExecutor.pollAndUpdateTask(task) } }
+            futures.forEach { it.get() }
         }
     }
 

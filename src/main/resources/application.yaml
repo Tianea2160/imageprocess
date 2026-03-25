@@ -1,4 +1,7 @@
 spring:
+  threads:
+    virtual:
+      enabled: true
   application:
     name: imageprocess
   datasource:
@@ -30,7 +33,7 @@ spring:
 
 mock-worker:
   base-url: https://dev.realteeth.ai/mock
-  api-key: ${MOCK_WORKER_API_KEY:}
+  api-key: ${MOCK_WORKER_API_KEY:mock_1293d47ba4b74d95b3ae0e514d043e5f}
   connect-timeout: 5s
   read-timeout: 30s
 

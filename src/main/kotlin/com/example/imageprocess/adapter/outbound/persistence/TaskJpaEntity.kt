@@ -52,13 +52,13 @@ class TaskJpaEntity(
     @Column(nullable = false)
     var updatedAt: Instant = Instant.now(),
 ) : Persistable<String> {
-
     @Transient
-    private var _isNew: Boolean = false
+    var isNewEntity: Boolean = false
+        private set
 
     override fun getId(): String = id
 
-    override fun isNew(): Boolean = _isNew
+    override fun isNew(): Boolean = isNewEntity
 
     fun toDomain(): Task =
         Task(
@@ -96,6 +96,6 @@ class TaskJpaEntity(
                 version = task.version,
                 createdAt = task.createdAt,
                 updatedAt = task.updatedAt,
-            ).also { it._isNew = isNew }
+            ).also { it.isNewEntity = isNew }
     }
 }

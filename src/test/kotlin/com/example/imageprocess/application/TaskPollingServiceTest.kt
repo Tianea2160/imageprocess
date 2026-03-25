@@ -12,7 +12,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -41,7 +40,7 @@ class TaskPollingServiceTest {
 
     @Test
     fun `pollTasks should skip when circuit breaker is open`() =
-        runTest {
+        run {
             every { circuitBreaker.isOpen() } returns true
 
             service.pollTasks()
@@ -51,7 +50,7 @@ class TaskPollingServiceTest {
 
     @Test
     fun `pollTasks should skip when no pollable tasks`() =
-        runTest {
+        run {
             every { circuitBreaker.isOpen() } returns false
             every { taskRepository.findPollableTasks(any(), any()) } returns emptyList()
 
@@ -62,7 +61,7 @@ class TaskPollingServiceTest {
 
     @Test
     fun `pollTasks should call pollAndUpdateTask for each task`() =
-        runTest {
+        run {
             val task1 = TaskFixture.submitted(id = "task-1")
             val task2 = TaskFixture.submitted(id = "task-2")
             every { circuitBreaker.isOpen() } returns false
