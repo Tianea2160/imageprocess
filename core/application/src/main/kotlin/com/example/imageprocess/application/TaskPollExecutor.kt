@@ -12,6 +12,7 @@ import com.example.imageprocess.domain.port.outbound.WorkerJobStatus
 import com.example.imageprocess.domain.statemachine.core.StateMachine
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
@@ -21,6 +22,7 @@ import kotlin.math.pow
 import kotlin.random.Random
 
 @Service
+@ConditionalOnProperty("polling.fixed-delay")
 class TaskPollExecutor(
     private val taskRepository: TaskRepository,
     private val imageProcessor: ImageProcessor,

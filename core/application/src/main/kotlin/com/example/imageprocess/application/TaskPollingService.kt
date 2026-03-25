@@ -9,6 +9,7 @@ import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.statemachine.core.StateMachine
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -18,6 +19,7 @@ import java.util.concurrent.Executors
 import kotlin.random.Random
 
 @Service
+@ConditionalOnProperty("polling.fixed-delay")
 class TaskPollingService(
     private val taskRepository: TaskRepository,
     private val taskEventPublisher: TaskEventPublisher,
@@ -30,7 +32,6 @@ class TaskPollingService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(fixedDelayString = "\${polling.fixed-delay}")
-    @Transactional
     fun pollTasks() {
         if (circuitBreaker.isOpen()) {
             log.debug("Circuit breaker is open, skipping poll")

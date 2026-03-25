@@ -8,5 +8,5 @@ include(
     ":infra:mockworker",
     ":infra:kafka",
     ":app-api",
-    ":app-worker",
+    ":app-consumer",
 )

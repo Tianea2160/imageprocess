@@ -39,7 +39,7 @@ class TaskService(
         val fingerprint = Task.computeFingerprint(imageUrl)
 
         val existing = taskRepository.findByFingerprint(fingerprint)
-        if (existing != null) {
+        if (existing != null && !existing.state.isTerminal()) {
             return existing
         }
 

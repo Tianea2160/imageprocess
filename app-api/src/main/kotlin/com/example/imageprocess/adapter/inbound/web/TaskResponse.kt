@@ -9,6 +9,8 @@ import java.time.Instant
 data class TaskResponse(
     @Schema(description = "작업 ID", example = "01226N0640J7Q", requiredMode = Schema.RequiredMode.REQUIRED)
     val taskId: String,
+    @Schema(description = "Job ID", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    val jobId: String?,
     @Schema(description = "이미지 URL", requiredMode = Schema.RequiredMode.REQUIRED)
     val imageUrl: String,
     @Schema(description = "작업 상태", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -28,6 +30,7 @@ data class TaskResponse(
         fun from(task: Task): TaskResponse =
             TaskResponse(
                 taskId = task.id,
+                jobId = task.jobId,
                 imageUrl = task.imageUrl,
                 status = task.state,
                 result = task.result,

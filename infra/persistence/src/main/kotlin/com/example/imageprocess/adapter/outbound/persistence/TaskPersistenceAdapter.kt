@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 @Component
@@ -23,6 +24,7 @@ class TaskPersistenceAdapter(
 
     override fun findByFingerprint(fingerprint: String): Task? = jpaRepository.findByFingerprint(fingerprint)?.toDomain()
 
+    @Transactional(readOnly = false)
     override fun findPollableTasks(
         now: Instant,
         limit: Int,

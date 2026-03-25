@@ -21,4 +21,8 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 server:
-  port: 8080
+  port: 8082
+
+polling:
+  initial-delay-ms: 5000
+  spread-window-ms: 10000
