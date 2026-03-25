@@ -41,7 +41,7 @@ class MockWorkerClient(
 
     @Retryable(
         includes = [RetryableWorkerException::class],
-        maxRetriesString = "\${mock-worker.max-retries:2}",
+        maxRetriesString = "\${mock-worker.max-retries:1}",
         delay = 100,
         multiplier = 2.0,
     )
@@ -61,7 +61,7 @@ class MockWorkerClient(
 
     @Retryable(
         includes = [RetryableWorkerException::class],
-        maxRetriesString = "\${mock-worker.max-retries:2}",
+        maxRetriesString = "\${mock-worker.max-retries:1}",
         delay = 100,
         multiplier = 2.0,
     )

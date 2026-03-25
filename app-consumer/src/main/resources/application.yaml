@@ -8,6 +8,8 @@ spring:
     url: jdbc:postgresql://localhost:25432/imageprocess
     username: imageprocess
     password: imageprocess
+    hikari:
+      connection-timeout: 10000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -18,6 +20,7 @@ spring:
     redis:
       host: localhost
       port: 36379
+      timeout: 10s
   kafka:
     bootstrap-servers: localhost:29092
     producer:
@@ -30,6 +33,8 @@ spring:
       properties:
         spring.json.trusted.packages: com.example.imageprocess.adapter.kafka
       auto-offset-reset: earliest
+    listener:
+      concurrency: 3
 
 server:
   port: 8081
@@ -38,7 +43,7 @@ mock-worker:
   base-url: https://dev.realteeth.ai/mock
   api-key: ${MOCK_WORKER_API_KEY:mock_1293d47ba4b74d95b3ae0e514d043e5f}
   connect-timeout: 5s
-  read-timeout: 30s
+  read-timeout: 10s
 
 polling:
   fixed-delay: 2000

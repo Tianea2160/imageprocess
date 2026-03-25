@@ -35,7 +35,7 @@ class TaskSubmitConsumer(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @RetryableTopic(
-        attempts = "4",
+        attempts = "3",
         backOff = BackOff(delay = 2000, multiplier = 2.0, maxDelay = 30000),
     )
     @KafkaListener(topics = [KafkaTopics.TASK_SUBMIT], groupId = "\${spring.kafka.consumer.group-id}")

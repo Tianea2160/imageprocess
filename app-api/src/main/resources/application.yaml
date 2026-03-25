@@ -8,6 +8,8 @@ spring:
     url: jdbc:postgresql://localhost:25432/imageprocess
     username: imageprocess
     password: imageprocess
+    hikari:
+      connection-timeout: 10000
   jpa:
     hibernate:
       ddl-auto: validate

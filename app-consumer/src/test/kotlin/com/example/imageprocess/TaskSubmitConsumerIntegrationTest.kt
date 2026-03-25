@@ -96,7 +96,6 @@ class TaskSubmitConsumerIntegrationTest {
             listOf(
                 "${KafkaTopics.TASK_SUBMIT}-retry-2000",
                 "${KafkaTopics.TASK_SUBMIT}-retry-4000",
-                "${KafkaTopics.TASK_SUBMIT}-retry-8000",
                 "${KafkaTopics.TASK_SUBMIT}-dlt",
             )
 
@@ -180,7 +179,7 @@ class TaskSubmitConsumerIntegrationTest {
 
         kafkaTemplate.send(KafkaTopics.TASK_SUBMIT, task.id, TaskSubmitMessage(task.id, task.imageUrl)).get()
 
-        // RetryableTopic attempts=4, backOff delay=2000, multiplier=2.0
+        // RetryableTopic attempts=3, backOff delay=2000, multiplier=2.0
         // After all retries exhausted -> DLT -> FAILED
         await().atMost(Duration.ofSeconds(30)).untilAsserted {
             taskRepository.findById(task.id)?.state shouldBe TaskStatus.FAILED
