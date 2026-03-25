@@ -51,7 +51,7 @@ docker compose -f compose.stress.yaml down -v
 
 ## API 명세
 
-API 문서(Scalar UI)는 서버 실행 후 `http://localhost:18082/scalar/v1` 에서 확인할 수 있습니다.
+API 문서(Scalar UI)는 서버 실행 후 `http://localhost:18082/scalar` 에서 확인할 수 있습니다.
 
 ### 1. 이미지 처리 요청
 
@@ -112,19 +112,23 @@ GET http://localhost:18082/api/tasks?page=0&size=20&status=COMPLETED
 
 두 개의 독립적인 Spring Boot 애플리케이션으로 구성됩니다.
 
-```
-┌──────────┐     ┌──────────┐     ┌───────────┐     ┌─────────────┐
-│  Client  │────▷│ app-api  │────▷│   Kafka   │────▷│app-consumer │
-│          │     │ (REST)   │     │           │     │ (Worker)    │
-└──────────┘     └────┬─────┘     └───────────┘     └──────┬──────┘
-                      │                                     │
-                      │         ┌──────────┐                │
-                      └────────▷│PostgreSQL│◁───────────────┘
-                                └──────────┘                │
-                                                            │
-                                ┌──────────┐    ┌───────────▽──────────┐
-                                │  Redis   │◁───│ Mock Worker (외부)   │
-                                └──────────┘    └──────────────────────┘
+```mermaid
+graph LR
+    Client([Client])
+    API[app-api<br/>REST API]
+    Kafka[(Kafka)]
+    Consumer[app-consumer<br/>Worker]
+    PG[(PostgreSQL)]
+    Redis[(Redis)]
+    Mock[Mock Worker<br/>외부 서비스]
+
+    Client -->|POST /api/tasks| API
+    API -->|이벤트 발행| Kafka
+    API -->|Task 저장| PG
+    Kafka -->|메시지 소비| Consumer
+    Consumer -->|Task 조회/갱신| PG
+    Consumer -->|Rate Limiter<br/>Circuit Breaker| Redis
+    Consumer -->|작업 제출<br/>상태 폴링| Mock
 ```
 
 - **app-api**: 클라이언트 요청 수신, Task 생성, Kafka로 작업 제출 이벤트 발행

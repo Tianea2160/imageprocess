@@ -36,7 +36,19 @@ class TaskPollingServiceTest {
                 budgetPerTick = 10,
                 baseDelayMs = 1000,
             )
+        service.startPolling()
     }
+
+    @Test
+    fun `pollTasks should skip when not running`() =
+        run {
+            service.stopPolling()
+
+            service.pollTasks()
+
+            verify(exactly = 0) { circuitBreaker.isOpen() }
+            verify(exactly = 0) { taskRepository.findPollableTasks(any(), any()) }
+        }
 
     @Test
     fun `pollTasks should skip when circuit breaker is open`() =

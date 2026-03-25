@@ -31,8 +31,24 @@ class TaskPollingService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    @Volatile
+    private var running = false
+
+    fun startPolling() {
+        running = true
+        log.info("Polling started")
+    }
+
+    fun stopPolling() {
+        running = false
+        log.info("Polling stopped")
+    }
+
+    fun isPollingRunning(): Boolean = running
+
     @Scheduled(fixedDelayString = "\${polling.fixed-delay}")
     fun pollTasks() {
+        if (!running) return
         if (circuitBreaker.isOpen()) {
             log.debug("Circuit breaker is open, skipping poll")
             return

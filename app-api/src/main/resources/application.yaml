@@ -21,9 +21,12 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 server:
   port: 8082
+  shutdown: graceful
 
 polling:
   initial-delay-ms: 5000
