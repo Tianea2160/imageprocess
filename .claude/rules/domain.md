@@ -1,5 +1,5 @@
 ---
-globs: src/main/kotlin/com/example/imageprocess/domain/**/*.kt
+globs: core/domain/**/*.kt
 ---
 
 # Domain Layer Rules

@@ -1,5 +1,8 @@
 ---
-globs: src/main/kotlin/com/example/imageprocess/adapter/**/*.kt
+globs:
+  - infra/**/*.kt
+  - app-api/**/*.kt
+  - app-consumer/**/*.kt
 ---
 
 # Adapter Layer Rules

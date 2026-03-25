@@ -1,5 +1,5 @@
 ---
-globs: src/main/kotlin/com/example/imageprocess/application/**/*.kt
+globs: core/application/**/*.kt
 ---
 
 # Application Layer Rules
