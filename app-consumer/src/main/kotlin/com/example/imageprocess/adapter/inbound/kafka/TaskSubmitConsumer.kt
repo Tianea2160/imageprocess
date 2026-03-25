@@ -7,6 +7,7 @@ import com.example.imageprocess.domain.model.TaskEvent
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.ImageProcessor
+import com.example.imageprocess.domain.port.outbound.RateLimiter
 import com.example.imageprocess.domain.port.outbound.SubmitResult
 import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.statemachine.core.StateMachine
@@ -27,6 +28,7 @@ import kotlin.random.Random
 class TaskSubmitConsumer(
     private val taskRepository: TaskRepository,
     private val imageProcessor: ImageProcessor,
+    private val rateLimiter: RateLimiter,
     private val circuitBreaker: CircuitBreaker,
     private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
     @Value("\${polling.initial-delay-ms}") private val initialDelayMs: Long,
@@ -52,6 +54,15 @@ class TaskSubmitConsumer(
         if (task.state != TaskStatus.PENDING) {
             log.info("Task {} already in state {}, skipping", task.id, task.state)
             return
+        }
+
+        if (circuitBreaker.isOpen()) {
+            log.warn("Task {} submit deferred — circuit breaker is open", task.id)
+            throw RetryableSubmitException("Circuit breaker is open")
+        }
+        if (!rateLimiter.tryAcquire()) {
+            log.warn("Task {} submit deferred — rate limiter rejected", task.id)
+            throw RetryableSubmitException("Rate limiter rejected")
         }
 
         when (val result = imageProcessor.submitImage(message.imageUrl)) {

@@ -37,6 +37,10 @@ class TaskPollExecutor(
 
     @Transactional
     fun pollAndUpdateTask(task: Task) {
+        if (circuitBreaker.isOpen()) {
+            log.debug("Circuit breaker is open, skipping poll for task {}", task.id)
+            return
+        }
         if (!rateLimiter.tryAcquire()) {
             log.debug("Rate limiter rejected poll for task {}", task.id)
             return
