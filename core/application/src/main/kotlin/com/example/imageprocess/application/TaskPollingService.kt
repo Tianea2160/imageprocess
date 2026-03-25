@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 import kotlin.random.Random
 
 @Service
@@ -26,6 +26,7 @@ class TaskPollingService(
     private val taskPollExecutor: TaskPollExecutor,
     private val circuitBreaker: CircuitBreaker,
     private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
+    private val pollExecutor: ExecutorService,
     @Value("\${polling.budget-per-tick}") private val budgetPerTick: Int,
     @Value("\${polling.base-delay-ms}") private val baseDelayMs: Long,
 ) {
@@ -57,10 +58,8 @@ class TaskPollingService(
         val tasks = taskRepository.findPollableTasks(Instant.now(), budgetPerTick)
         if (tasks.isEmpty()) return
 
-        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
-            val futures = tasks.map { task -> executor.submit { taskPollExecutor.pollAndUpdateTask(task) } }
-            futures.forEach { it.get() }
-        }
+        val futures = tasks.map { task -> pollExecutor.submit { taskPollExecutor.pollAndUpdateTask(task) } }
+        futures.forEach { it.get() }
     }
 
     @Transactional

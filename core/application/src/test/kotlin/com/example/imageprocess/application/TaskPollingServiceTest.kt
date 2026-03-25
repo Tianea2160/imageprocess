@@ -14,6 +14,7 @@ import io.mockk.slot
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.concurrent.Executors
 
 class TaskPollingServiceTest {
     private val taskRepository = mockk<TaskRepository>()
@@ -33,6 +34,7 @@ class TaskPollingServiceTest {
                 taskPollExecutor = taskPollExecutor,
                 circuitBreaker = circuitBreaker,
                 sm = sm,
+                pollExecutor = Executors.newVirtualThreadPerTaskExecutor(),
                 budgetPerTick = 10,
                 baseDelayMs = 1000,
             )

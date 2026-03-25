@@ -361,6 +361,8 @@ stateDiagram-v2
 | Kafka Consumer | 메시지 적체 | 파티션 3개 + concurrency 3으로 병렬 소비, DLT로 독약 메시지 격리 |
 | 작업 제출 | 대량 동시 요청 | Kafka로 비동기 제출 분리, app-api는 DB 저장 + 이벤트 발행만 수행 |
 
+**근본적 한계:** Mock Worker의 처리량이 증가하지 않는 한, imageprocess 서비스를 아무리 확장성 있게 설계하더라도 절대적 처리량의 한계가 존재합니다. Rate Limiter와 Circuit Breaker는 이 한계 내에서 서비스가 안정적으로 동작하도록 보호하는 역할이며, 전체 처리량을 늘리려면 Mock Worker 측의 스케일업/스케일아웃이 필수적입니다.
+
 ---
 
 ## 외부 시스템 연동 방식
@@ -390,6 +392,7 @@ Kafka로 제출을 분리하면:
 2. Mock Worker 지연/장애가 API 서버에 전파되지 않음
 3. Consumer를 독립 스케일 가능
 4. 메시지 영속성으로 서버 재시작 시에도 작업 유실 방지
+5. Kafka 자체의 메시지 보존, 파티션 기반 병렬 소비, Consumer Group 리밸런싱을 활용하여 서비스 가용성 확보 — Consumer 인스턴스가 장애로 중단되어도 다른 인스턴스가 파티션을 인계받아 처리를 이어감
 
 ### Redis
 
@@ -399,7 +402,23 @@ Kafka로 제출을 분리하면:
 
 ---
 
-## 서버 재시작 시 동작
+## 서버 시작/종료 및 재시작
+
+### Graceful Shutdown
+
+Spring Boot의 `server.shutdown=graceful` 설정으로 두 애플리케이션 모두 안전한 종료를 지원합니다.
+
+- **app-api**: Spring Boot가 진행 중인 HTTP 요청을 완료한 뒤 종료 (`timeout-per-shutdown-phase: 30s`)
+- **app-consumer**: Spring Kafka의 `KafkaListenerEndpointRegistry`(`SmartLifecycle`)가 Kafka Listener를 자동으로 안전하게 중단하고, 커스텀 `PollingLifecycleManager`(`SmartLifecycle`)가 폴링 스케줄러를 중단합니다. `spring.task.scheduling.shutdown.await-termination`으로 진행 중인 폴링 작업 완료를 대기합니다.
+
+Spring Kafka의 Listener는 `SmartLifecycle`을 구현하고 있어 별도 커스텀 코드 없이 컨테이너 종료 시그널(SIGTERM)에 자동 대응합니다.
+폴링 스케줄러는 Spring이 자동 관리하지 않으므로 `PollingLifecycleManager`를 별도로 정의하여 시작/종료 순서를 제어합니다.
+
+### 폴링 스케줄러의 한계와 개선 방향
+
+현재 폴링 스케줄러는 app-consumer 내부의 `@Scheduled` 로직으로 구현되어 있어, API 처리와 같은 프로세스에서 동작합니다.
+프로덕션 환경에서는 폴링을 애플리케이션 서버와 분리하는 것이 이상적입니다.
+AWS EventBridge Scheduler, CloudWatch Events 등 클라우드 스케줄러 서비스를 사용하면 스케줄링 책임을 인프라에 위임하여 서버 배포/재시작과 무관하게 안정적으로 폴링을 수행할 수 있습니다.
 
 ### 복구 프로세스
 
