@@ -16,7 +16,11 @@ dependencies {
     implementation(libs.springdoc.openapi.starter.webmvc.scalar)
 
     testImplementation(testFixtures(project(":core:domain")))
+    testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(libs.spring.boot.testcontainers)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.bundles.testing)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

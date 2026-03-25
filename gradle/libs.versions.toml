@@ -13,6 +13,7 @@ hypersistenceTsid = "2.1.4"
 springdocOpenapi = "3.0.2"
 springDataCommons = "4.0.4"
 testcontainers = "2.0.4"
+konsist = "0.17.3"
 
 [libraries]
 # Spring Boot
@@ -55,6 +56,9 @@ spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-star
 spring-boot-starter-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test" }
 spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
+testcontainers-redis = { module = "com.redis:testcontainers-redis", version = "2.4.0" }
+testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
+konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 
 [bundles]
 testing = ["kotlin-test-junit5", "kotest-assertions-core", "mockk"]

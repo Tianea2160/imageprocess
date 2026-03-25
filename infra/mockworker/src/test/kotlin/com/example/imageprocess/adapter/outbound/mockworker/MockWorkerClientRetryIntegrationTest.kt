@@ -2,8 +2,8 @@ package com.example.imageprocess.adapter.outbound.mockworker
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import mockwebserver3.MockResponse
-import mockwebserver3.MockWebServer
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -48,31 +48,34 @@ class MockWorkerClientRetryIntegrationTest {
         }
     }
 
-    private fun enqueueJson(statusCode: Int, body: String) {
+    private fun enqueueJson(
+        statusCode: Int,
+        body: String,
+    ) {
         mockServer.enqueue(
-            MockResponse.Builder()
-                .code(statusCode)
+            MockResponse()
+                .setResponseCode(statusCode)
                 .addHeader("Content-Type", "application/json")
-                .body(body)
-                .build(),
+                .setBody(body),
         )
     }
 
-    private fun enqueueError(statusCode: Int, detail: String = "error") {
+    private fun enqueueError(
+        statusCode: Int,
+        detail: String = "error",
+    ) {
         enqueueJson(statusCode, """{"detail":"$detail"}""")
     }
 
     private fun enqueueEmpty(statusCode: Int) {
         mockServer.enqueue(
-            MockResponse.Builder()
-                .code(statusCode)
-                .addHeader("Content-Type", "application/json")
-                .build(),
+            MockResponse()
+                .setResponseCode(statusCode)
+                .addHeader("Content-Type", "application/json"),
         )
     }
 
-    private fun successProcessResponse(jobId: String = "job-1") =
-        """{"jobId":"$jobId","status":"PROCESSING"}"""
+    private fun successProcessResponse(jobId: String = "job-1") = """{"jobId":"$jobId","status":"PROCESSING"}"""
 
     private fun successStatusResponse(
         jobId: String = "job-1",
@@ -99,9 +102,10 @@ class MockWorkerClientRetryIntegrationTest {
     fun `submitImage should throw NonRetryableWorkerException on 400`() {
         enqueueError(400, "bad request")
 
-        val ex = assertThrows<NonRetryableWorkerException> {
-            client.submitImage("https://example.com/img.png")
-        }
+        val ex =
+            assertThrows<NonRetryableWorkerException> {
+                client.submitImage("https://example.com/img.png")
+            }
         ex.message shouldContain "bad request"
     }
 
@@ -127,21 +131,23 @@ class MockWorkerClientRetryIntegrationTest {
     fun `submitImage should throw NonRetryableWorkerException on 422`() {
         enqueueError(422, "unprocessable")
 
-        val ex = assertThrows<NonRetryableWorkerException> {
-            client.submitImage("https://example.com/img.png")
-        }
+        val ex =
+            assertThrows<NonRetryableWorkerException> {
+                client.submitImage("https://example.com/img.png")
+            }
         ex.message shouldContain "unprocessable"
     }
 
     @Test
     fun `submitImage should not retry on non-retryable status codes`() {
+        val before = mockServer.requestCount
         enqueueError(400, "bad request")
 
         assertThrows<NonRetryableWorkerException> {
             client.submitImage("https://example.com/img.png")
         }
 
-        mockServer.requestCount shouldBe 1
+        (mockServer.requestCount - before) shouldBe 1
     }
 
     @Test
@@ -254,13 +260,14 @@ class MockWorkerClientRetryIntegrationTest {
 
     @Test
     fun `getJobStatus should throw NonRetryableWorkerException on 404`() {
+        val before = mockServer.requestCount
         enqueueError(404, "not found")
 
         assertThrows<NonRetryableWorkerException> {
             client.getJobStatus("nonexistent-job")
         }
 
-        mockServer.requestCount shouldBe 1
+        (mockServer.requestCount - before) shouldBe 1
     }
 
     @Test

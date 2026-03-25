@@ -9,4 +9,5 @@ include(
     ":infra:kafka",
     ":app-api",
     ":app-consumer",
+    ":convention-test",
 )
