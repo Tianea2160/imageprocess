@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 
@@ -32,10 +31,14 @@ interface TaskApi {
         summary = "작업 목록 조회",
         description = "페이지네이션과 상태 필터를 지원하는 작업 목록을 조회합니다.",
         responses = [ApiResponse(responseCode = "200", description = "조회 성공")],
+        parameters = [
+            Parameter(name = "page", description = "페이지 번호 (0부터 시작)", example = "0", required = true),
+            Parameter(name = "size", description = "페이지 크기", example = "20", required = true),
+            Parameter(name = "status", description = "상태 필터", required = false),
+        ],
     )
     fun listTasks(
-        @ParameterObject pageable: Pageable,
-        @Parameter(description = "상태 필터")
+        pageable: Pageable,
         status: TaskStatus?,
     ): Page<TaskResponse>
 }

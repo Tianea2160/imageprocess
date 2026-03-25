@@ -2,6 +2,7 @@ package com.example.imageprocess.adapter.inbound.web
 
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.inbound.TaskUseCase
+import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
@@ -39,7 +40,7 @@ class TaskController(
 
     @GetMapping
     override fun listTasks(
-        @PageableDefault(size = 20) pageable: Pageable,
+        @ParameterObject @PageableDefault(size = 20) pageable: Pageable,
         @RequestParam(required = false) status: TaskStatus?,
     ): Page<TaskResponse> = taskUseCase.listTasks(pageable, status).map { TaskResponse.from(it) }
 }
