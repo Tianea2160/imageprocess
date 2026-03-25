@@ -113,7 +113,8 @@ class TaskSubmitConsumer(
         task: Task,
         reason: String,
     ) {
-        val updated = sm.fire(task, TaskEvent.Fail(reason)).context
+        val transitioned = sm.fire(task, TaskEvent.Fail(reason)).context
+        val updated = transitioned.withFailReason(reason).withNextPoll(null)
         taskRepository.save(updated)
     }
 }
