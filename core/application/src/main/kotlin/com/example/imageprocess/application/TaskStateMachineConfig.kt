@@ -19,37 +19,25 @@ class TaskStateMachineConfig {
     fun taskStateMachine(): StateMachine<TaskStatus, TaskEvent, Task> =
         stateMachine {
             from(TaskStatus.PENDING) {
-                on<Submit>() goto TaskStatus.SUBMITTED action { task, event ->
-                    task.withJobId(event.jobId)
-                }
-                on<Fail>() goto TaskStatus.FAILED action { task, event ->
-                    task.withFailReason(event.reason).withNextPoll(null)
-                }
+                on<Submit>() goto TaskStatus.SUBMITTED
+                on<Fail>() goto TaskStatus.FAILED
             }
 
             from(TaskStatus.SUBMITTED) {
                 on<StartProcessing>() goto TaskStatus.PROCESSING
-                on<Fail>() goto TaskStatus.FAILED action { task, event ->
-                    task.withFailReason(event.reason).withNextPoll(null)
-                }
+                on<Fail>() goto TaskStatus.FAILED
                 on<TaskEvent.RetryWait>() goto TaskStatus.RETRY_WAITING
             }
 
             from(TaskStatus.PROCESSING) {
-                on<Complete>() goto TaskStatus.COMPLETED action { task, event ->
-                    task.withResult(event.result).withNextPoll(null)
-                }
-                on<Fail>() goto TaskStatus.FAILED action { task, event ->
-                    task.withFailReason(event.reason).withNextPoll(null)
-                }
+                on<Complete>() goto TaskStatus.COMPLETED
+                on<Fail>() goto TaskStatus.FAILED
                 on<TaskEvent.RetryWait>() goto TaskStatus.RETRY_WAITING
             }
 
             from(TaskStatus.RETRY_WAITING) {
                 on<RecoverToSubmitted>() goto TaskStatus.SUBMITTED
-                on<Fail>() goto TaskStatus.FAILED action { task, event ->
-                    task.withFailReason(event.reason).withNextPoll(null)
-                }
+                on<Fail>() goto TaskStatus.FAILED
             }
         }
 }

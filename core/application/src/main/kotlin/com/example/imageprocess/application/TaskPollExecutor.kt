@@ -65,13 +65,15 @@ class TaskPollExecutor(
                 circuitBreaker.recordSuccess()
                 when (result.status) {
                     WorkerJobStatus.COMPLETED -> {
-                        val updated = sm.fire(task, TaskEvent.Complete(result.result ?: "")).context
+                        val transitioned = sm.fire(task, TaskEvent.Complete(result.result ?: "")).context
+                        val updated = transitioned.withResult(result.result ?: "").withNextPoll(null)
                         taskRepository.save(updated)
                         log.info("Task {} completed", task.id)
                     }
 
                     WorkerJobStatus.FAILED -> {
-                        val updated = sm.fire(task, TaskEvent.Fail("Mock Worker returned FAILED")).context
+                        val transitioned = sm.fire(task, TaskEvent.Fail("Mock Worker returned FAILED")).context
+                        val updated = transitioned.withFailReason("Mock Worker returned FAILED").withNextPoll(null)
                         taskRepository.save(updated)
                         log.warn("Task {} failed from Mock Worker", task.id)
                     }
@@ -108,7 +110,8 @@ class TaskPollExecutor(
         reason: String,
     ) {
         log.warn("Task {} failed (non-retryable): {}", task.id, reason)
-        val updated = sm.fire(task, TaskEvent.Fail(reason)).context
+        val transitioned = sm.fire(task, TaskEvent.Fail(reason)).context
+        val updated = transitioned.withFailReason(reason).withNextPoll(null)
         taskRepository.save(updated)
     }
 
@@ -127,8 +130,8 @@ class TaskPollExecutor(
             } else {
                 computeNextPollAt(task.retryCount)
             }
-        val prepared = task.withRetry(nextPollAt)
-        val updated = sm.fire(prepared, TaskEvent.RetryWait).context
+        val transitioned = sm.fire(task, TaskEvent.RetryWait).context
+        val updated = transitioned.withRetry(nextPollAt)
         taskRepository.save(updated)
     }
 

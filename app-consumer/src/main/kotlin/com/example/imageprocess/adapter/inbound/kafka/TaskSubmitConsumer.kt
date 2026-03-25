@@ -67,12 +67,12 @@ class TaskSubmitConsumer(
 
         when (val result = imageProcessor.submitImage(message.imageUrl)) {
             is SubmitResult.Success -> {
+                val transitioned = sm.fire(task, TaskEvent.Submit(result.jobId)).context
                 val nextPollAt =
                     Instant
                         .now()
                         .plus(Duration.ofMillis(initialDelayMs + Random.nextLong(0, spreadWindowMs)))
-                val prepared = task.withNextPoll(nextPollAt)
-                val updated = sm.fire(prepared, TaskEvent.Submit(result.jobId)).context
+                val updated = transitioned.withJobId(result.jobId).withNextPoll(nextPollAt)
                 taskRepository.save(updated)
                 circuitBreaker.recordSuccess()
                 log.info("Task {} submitted with jobId {}", task.id, result.jobId)
