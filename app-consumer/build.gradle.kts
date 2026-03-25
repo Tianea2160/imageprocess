@@ -17,5 +17,10 @@ dependencies {
 
     testImplementation(testFixtures(project(":core:domain")))
     testImplementation(libs.bundles.testing)
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.testcontainers)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.kafka)
+    testImplementation(libs.spring.boot.starter.kafka.test)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

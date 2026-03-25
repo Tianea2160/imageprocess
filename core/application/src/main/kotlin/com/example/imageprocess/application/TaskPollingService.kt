@@ -65,12 +65,10 @@ class TaskPollingService(
                 log.info("Republished submit event for pending task {}", task.id)
             } else {
                 val nextPollAt = Instant.now().plus(Duration.ofMillis(Random.nextLong(0, baseDelayMs)))
-                var updated = task.withNextPoll(nextPollAt)
-
-                if (task.state == TaskStatus.RETRY_WAITING) {
-                    updated = sm.fire(updated, TaskEvent.RecoverToSubmitted).context
-                }
-
+                val updated =
+                    task.withNextPoll(nextPollAt).let {
+                        if (task.state == TaskStatus.RETRY_WAITING) sm.fire(it, TaskEvent.RecoverToSubmitted).context else it
+                    }
                 taskRepository.save(updated)
             }
         }

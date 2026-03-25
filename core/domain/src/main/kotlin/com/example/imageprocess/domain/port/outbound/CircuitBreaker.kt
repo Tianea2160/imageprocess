@@ -6,4 +6,6 @@ interface CircuitBreaker {
     fun recordSuccess()
 
     fun recordFailure()
+
+    fun openForSeconds(seconds: Long)
 }

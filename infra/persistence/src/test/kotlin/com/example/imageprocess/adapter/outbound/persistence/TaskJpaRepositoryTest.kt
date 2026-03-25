@@ -19,6 +19,8 @@ import java.time.Instant
 @Import(TestcontainersConfiguration::class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class TaskJpaRepositoryTest {
+    private val pollableStatuses = TaskStatus.entries.filter { it.isPollable() }
+
     @Autowired
     private lateinit var repository: TaskJpaRepository
 
@@ -73,7 +75,7 @@ class TaskJpaRepositoryTest {
         repository.save(createEntity("task-1", TaskStatus.SUBMITTED, now.minusSeconds(10)))
         repository.save(createEntity("task-2", TaskStatus.PENDING, now.minusSeconds(10)))
 
-        val result = repository.findPollableTasks(now, PageRequest.of(0, 10))
+        val result = repository.findPollableTasks(now, pollableStatuses, PageRequest.of(0, 10))
         result shouldHaveSize 1
         result[0].id shouldBe "task-1"
     }
@@ -83,7 +85,7 @@ class TaskJpaRepositoryTest {
         val now = Instant.now()
         repository.save(createEntity("task-1", TaskStatus.PROCESSING, now.minusSeconds(10)))
 
-        val result = repository.findPollableTasks(now, PageRequest.of(0, 10))
+        val result = repository.findPollableTasks(now, pollableStatuses, PageRequest.of(0, 10))
         result shouldHaveSize 1
         result[0].id shouldBe "task-1"
     }
@@ -93,7 +95,7 @@ class TaskJpaRepositoryTest {
         val now = Instant.now()
         repository.save(createEntity("task-1", TaskStatus.SUBMITTED, now.plusSeconds(60)))
 
-        val result = repository.findPollableTasks(now, PageRequest.of(0, 10))
+        val result = repository.findPollableTasks(now, pollableStatuses, PageRequest.of(0, 10))
         result shouldHaveSize 0
     }
 
@@ -101,7 +103,7 @@ class TaskJpaRepositoryTest {
     fun `findPollableTasks should exclude tasks with null nextPollAt`() {
         repository.save(createEntity("task-1", TaskStatus.SUBMITTED, null))
 
-        val result = repository.findPollableTasks(Instant.now(), PageRequest.of(0, 10))
+        val result = repository.findPollableTasks(Instant.now(), pollableStatuses, PageRequest.of(0, 10))
         result shouldHaveSize 0
     }
 
@@ -112,7 +114,7 @@ class TaskJpaRepositoryTest {
         repository.save(createEntity("task-2", TaskStatus.SUBMITTED, now.minusSeconds(20)))
         repository.save(createEntity("task-3", TaskStatus.SUBMITTED, now.minusSeconds(10)))
 
-        val result = repository.findPollableTasks(now, PageRequest.of(0, 2))
+        val result = repository.findPollableTasks(now, pollableStatuses, PageRequest.of(0, 2))
         result shouldHaveSize 2
     }
 

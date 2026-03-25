@@ -13,6 +13,7 @@ class RedisCircuitBreakerAdapter(
     @Value("\${circuit-breaker.failure-threshold}") private val failureThreshold: Int,
     @Value("\${circuit-breaker.cooldown-seconds}") private val cooldownSeconds: Long,
     @Value("\${circuit-breaker.half-open-max-calls}") private val halfOpenMaxCalls: Int,
+    @Value("\${circuit-breaker.failure-window-seconds:60}") private val failureWindowSeconds: Long,
 ) : CircuitBreaker {
     companion object {
         private const val KEY_PREFIX = "circuit_breaker:mock_worker"
@@ -25,7 +26,6 @@ class RedisCircuitBreakerAdapter(
         val openUntil = redisTemplate.opsForValue().get(OPEN_UNTIL_KEY) ?: return false
         val openUntilInstant = Instant.ofEpochMilli(openUntil.toLong())
         if (Instant.now().isAfter(openUntilInstant)) {
-            // half-open: 제한된 요청만 허용
             val halfOpenCalls = redisTemplate.opsForValue().increment(HALF_OPEN_CALLS_KEY) ?: 1
             if (halfOpenCalls == 1L) {
                 redisTemplate.expire(HALF_OPEN_CALLS_KEY, Duration.ofSeconds(cooldownSeconds))
@@ -41,16 +41,20 @@ class RedisCircuitBreakerAdapter(
 
     override fun recordFailure() {
         val failures = redisTemplate.opsForValue().increment(FAILURE_COUNT_KEY) ?: 1
-        redisTemplate.expire(FAILURE_COUNT_KEY, Duration.ofSeconds(cooldownSeconds * 2))
+        redisTemplate.expire(FAILURE_COUNT_KEY, Duration.ofSeconds(failureWindowSeconds))
 
         if (failures >= failureThreshold) {
-            val openUntil = Instant.now().plusSeconds(cooldownSeconds).toEpochMilli()
-            redisTemplate.opsForValue().set(
-                OPEN_UNTIL_KEY,
-                openUntil.toString(),
-                Duration.ofSeconds(cooldownSeconds * 2),
-            )
-            redisTemplate.delete(FAILURE_COUNT_KEY)
+            openForSeconds(cooldownSeconds)
         }
+    }
+
+    override fun openForSeconds(seconds: Long) {
+        val openUntil = Instant.now().plusSeconds(seconds).toEpochMilli()
+        redisTemplate.opsForValue().set(
+            OPEN_UNTIL_KEY,
+            openUntil.toString(),
+            Duration.ofSeconds(seconds * 2),
+        )
+        redisTemplate.delete(listOf(FAILURE_COUNT_KEY, HALF_OPEN_CALLS_KEY))
     }
 }

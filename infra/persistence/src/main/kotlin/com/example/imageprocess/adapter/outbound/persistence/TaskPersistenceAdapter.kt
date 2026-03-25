@@ -24,11 +24,14 @@ class TaskPersistenceAdapter(
 
     override fun findByFingerprint(fingerprint: String): Task? = jpaRepository.findByFingerprint(fingerprint)?.toDomain()
 
-    @Transactional(readOnly = false)
+    @Transactional
     override fun findPollableTasks(
         now: Instant,
         limit: Int,
-    ): List<Task> = jpaRepository.findPollableTasks(now, PageRequest.of(0, limit)).map { it.toDomain() }
+    ): List<Task> {
+        val pollableStatuses = TaskStatus.entries.filter { it.isPollable() }
+        return jpaRepository.findPollableTasks(now, pollableStatuses, PageRequest.of(0, limit)).map { it.toDomain() }
+    }
 
     override fun findByStatusIn(statuses: List<TaskStatus>): List<Task> = jpaRepository.findByStatusIn(statuses).map { it.toDomain() }
 

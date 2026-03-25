@@ -73,10 +73,8 @@ class TaskPollExecutor(
                     }
 
                     WorkerJobStatus.PROCESSING -> {
-                        var current = task
-                        if (task.state != TaskStatus.PROCESSING) {
-                            current = sm.fire(task, TaskEvent.StartProcessing).context
-                        }
+                        val current =
+                            if (task.state != TaskStatus.PROCESSING) sm.fire(task, TaskEvent.StartProcessing).context else task
                         val updated = current.withNextPoll(computeNextPollAt(task.pollCount))
                         taskRepository.save(updated)
                     }
@@ -88,9 +86,15 @@ class TaskPollExecutor(
             }
 
             is StatusResult.RetryableFailure -> {
-                circuitBreaker.recordFailure()
-                log.warn("Task {} poll failed (retryable): {}", task.id, result.reason)
-                handlePollFailure(task, result.retryAfterSeconds)
+                val retryAfter = result.retryAfterSeconds
+                if (retryAfter != null) {
+                    circuitBreaker.openForSeconds(retryAfter)
+                    log.warn("Task {} poll rate limited, circuit open for {}s, reason: {}", task.id, retryAfter, result.reason)
+                } else {
+                    circuitBreaker.recordFailure()
+                    log.warn("Task {} poll failed (retryable): {}", task.id, result.reason)
+                }
+                handlePollFailure(task, retryAfter)
             }
         }
     }

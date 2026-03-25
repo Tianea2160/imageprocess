@@ -50,7 +50,7 @@ polling:
   spread-window-ms: 10000
 
 rate-limiter:
-  max-tokens: 50
+  max-tokens: 10
   refill-rate: 10
   refill-interval-ms: 1000
 
@@ -58,3 +58,4 @@ circuit-breaker:
   failure-threshold: 5
   cooldown-seconds: 30
   half-open-max-calls: 3
+  failure-window-seconds: 60

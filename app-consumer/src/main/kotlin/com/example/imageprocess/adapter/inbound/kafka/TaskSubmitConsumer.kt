@@ -12,6 +12,7 @@ import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.statemachine.core.StateMachine
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.kafka.annotation.BackOff
 import org.springframework.kafka.annotation.DltHandler
 import org.springframework.kafka.annotation.KafkaListener
@@ -28,6 +29,8 @@ class TaskSubmitConsumer(
     private val imageProcessor: ImageProcessor,
     private val circuitBreaker: CircuitBreaker,
     private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
+    @Value("\${polling.initial-delay-ms}") private val initialDelayMs: Long,
+    @Value("\${polling.spread-window-ms}") private val spreadWindowMs: Long,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -56,7 +59,7 @@ class TaskSubmitConsumer(
                 val nextPollAt =
                     Instant
                         .now()
-                        .plus(Duration.ofMillis(2000 + Random.nextLong(0, 2000)))
+                        .plus(Duration.ofMillis(initialDelayMs + Random.nextLong(0, spreadWindowMs)))
                 val prepared = task.withNextPoll(nextPollAt)
                 val updated = sm.fire(prepared, TaskEvent.Submit(result.jobId)).context
                 taskRepository.save(updated)
@@ -70,15 +73,12 @@ class TaskSubmitConsumer(
             }
 
             is SubmitResult.RetryableFailure -> {
-                circuitBreaker.recordFailure()
-                if (result.retryAfterSeconds != null) {
-                    log.warn(
-                        "Task {} submit rate limited, retry-after: {}s, reason: {}",
-                        task.id,
-                        result.retryAfterSeconds,
-                        result.reason,
-                    )
+                val retryAfter = result.retryAfterSeconds
+                if (retryAfter != null) {
+                    circuitBreaker.openForSeconds(retryAfter)
+                    log.warn("Task {} submit rate limited, circuit open for {}s, reason: {}", task.id, retryAfter, result.reason)
                 } else {
+                    circuitBreaker.recordFailure()
                     log.warn("Task {} submit failed (retryable): {}", task.id, result.reason)
                 }
                 throw RetryableSubmitException(result.reason)

@@ -19,13 +19,14 @@ interface TaskJpaRepository : JpaRepository<TaskJpaEntity, String> {
     @Query(
         """
         SELECT t FROM TaskJpaEntity t
-        WHERE t.status IN ('SUBMITTED', 'PROCESSING')
+        WHERE t.status IN :statuses
         AND t.nextPollAt <= :now
         ORDER BY t.nextPollAt ASC
         """,
     )
     fun findPollableTasks(
         now: Instant,
+        statuses: List<TaskStatus>,
         pageable: Pageable,
     ): List<TaskJpaEntity>
 
