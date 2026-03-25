@@ -5,7 +5,6 @@ import com.example.imageprocess.domain.model.TaskEvent
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
 import com.example.imageprocess.domain.port.outbound.ImageProcessor
-import com.example.imageprocess.domain.port.outbound.RateLimiter
 import com.example.imageprocess.domain.port.outbound.StatusResult
 import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.port.outbound.WorkerJobStatus
@@ -26,7 +25,6 @@ import kotlin.random.Random
 class TaskPollExecutor(
     private val taskRepository: TaskRepository,
     private val imageProcessor: ImageProcessor,
-    private val rateLimiter: RateLimiter,
     private val circuitBreaker: CircuitBreaker,
     private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
     @Value("\${polling.base-delay-ms}") private val baseDelayMs: Long,
@@ -39,10 +37,6 @@ class TaskPollExecutor(
     fun pollAndUpdateTask(task: Task) {
         if (circuitBreaker.isOpen()) {
             log.debug("Circuit breaker is open, skipping poll for task {}", task.id)
-            return
-        }
-        if (!rateLimiter.tryAcquire()) {
-            log.debug("Rate limiter rejected poll for task {}", task.id)
             return
         }
 

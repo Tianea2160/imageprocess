@@ -4,6 +4,7 @@ import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskEvent
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
+import com.example.imageprocess.domain.port.outbound.RateLimiter
 import com.example.imageprocess.domain.port.outbound.TaskEventPublisher
 import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.domain.statemachine.core.StateMachine
@@ -24,6 +25,7 @@ class TaskPollingService(
     private val taskRepository: TaskRepository,
     private val taskEventPublisher: TaskEventPublisher,
     private val taskPollExecutor: TaskPollExecutor,
+    private val rateLimiter: RateLimiter,
     private val circuitBreaker: CircuitBreaker,
     private val sm: StateMachine<TaskStatus, TaskEvent, Task>,
     private val pollExecutor: ExecutorService,
@@ -58,7 +60,13 @@ class TaskPollingService(
         val tasks = taskRepository.findPollableTasks(Instant.now(), budgetPerTick)
         if (tasks.isEmpty()) return
 
-        val futures = tasks.map { task -> pollExecutor.submit { taskPollExecutor.pollAndUpdateTask(task) } }
+        val permitted = tasks.takeWhile { rateLimiter.tryAcquire() }
+        if (permitted.isEmpty()) {
+            log.debug("Rate limiter exhausted, skipping poll tick")
+            return
+        }
+
+        val futures = permitted.map { task -> pollExecutor.submit { taskPollExecutor.pollAndUpdateTask(task) } }
         futures.forEach { it.get() }
     }
 

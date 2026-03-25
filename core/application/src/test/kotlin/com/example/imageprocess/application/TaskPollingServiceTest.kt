@@ -3,6 +3,7 @@ package com.example.imageprocess.application
 import com.example.imageprocess.domain.model.Task
 import com.example.imageprocess.domain.model.TaskStatus
 import com.example.imageprocess.domain.port.outbound.CircuitBreaker
+import com.example.imageprocess.domain.port.outbound.RateLimiter
 import com.example.imageprocess.domain.port.outbound.TaskEventPublisher
 import com.example.imageprocess.domain.port.outbound.TaskRepository
 import com.example.imageprocess.fixture.TaskFixture
@@ -20,6 +21,7 @@ class TaskPollingServiceTest {
     private val taskRepository = mockk<TaskRepository>()
     private val taskEventPublisher = mockk<TaskEventPublisher>(relaxed = true)
     private val taskPollExecutor = mockk<TaskPollExecutor>(relaxed = true)
+    private val rateLimiter = mockk<RateLimiter>()
     private val circuitBreaker = mockk<CircuitBreaker>()
     private val sm = TaskStateMachineConfig().taskStateMachine()
 
@@ -32,6 +34,7 @@ class TaskPollingServiceTest {
                 taskRepository = taskRepository,
                 taskEventPublisher = taskEventPublisher,
                 taskPollExecutor = taskPollExecutor,
+                rateLimiter = rateLimiter,
                 circuitBreaker = circuitBreaker,
                 sm = sm,
                 pollExecutor = Executors.newVirtualThreadPerTaskExecutor(),
@@ -79,12 +82,30 @@ class TaskPollingServiceTest {
             val task1 = TaskFixture.submitted(id = "task-1")
             val task2 = TaskFixture.submitted(id = "task-2")
             every { circuitBreaker.isOpen() } returns false
+            every { rateLimiter.tryAcquire() } returns true
             every { taskRepository.findPollableTasks(any(), any()) } returns listOf(task1, task2)
 
             service.pollTasks()
 
             verify(exactly = 1) { taskPollExecutor.pollAndUpdateTask(task1) }
             verify(exactly = 1) { taskPollExecutor.pollAndUpdateTask(task2) }
+        }
+
+    @Test
+    fun `pollTasks should stop dispatching when rate limiter is exhausted`() =
+        run {
+            val task1 = TaskFixture.submitted(id = "task-1")
+            val task2 = TaskFixture.submitted(id = "task-2")
+            val task3 = TaskFixture.submitted(id = "task-3")
+            every { circuitBreaker.isOpen() } returns false
+            every { rateLimiter.tryAcquire() } returnsMany listOf(true, true, false)
+            every { taskRepository.findPollableTasks(any(), any()) } returns listOf(task1, task2, task3)
+
+            service.pollTasks()
+
+            verify(exactly = 1) { taskPollExecutor.pollAndUpdateTask(task1) }
+            verify(exactly = 1) { taskPollExecutor.pollAndUpdateTask(task2) }
+            verify(exactly = 0) { taskPollExecutor.pollAndUpdateTask(task3) }
         }
 
     @Test
